@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./compare_backend/scraper_app/Tradepoint",
+        "./compare_backend/scraper_app/Screwfix"
+    ]
+}
