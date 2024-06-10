@@ -3,17 +3,22 @@ from botocore.exceptions import ClientError
 import psycopg2
 import requests
 import json
-import csv
 import random
 import time
 import queue
 import os
+import sys
+from dotenv import load_dotenv
+load_dotenv()
 
-from cookies_headers import headers
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from .cookies_headers import cookies, headers
+
+error_log = []
 
 # Secret name and region
-secret_name = "AWS_RDS"
-region_name = "eu-west-2"
+secret_name = os.getenv('SECRET_NAME')
+region_name = os.getenv('REGION_NAME')
 
 def get_secret():
     session = boto3.session.Session()
@@ -50,16 +55,16 @@ def get_scraping_target_data():
         )
         print("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT category_code, url, category_id, subcategory_id FROM tradepoint")  
+        cursor.execute("SELECT shop_id, category_id, subcategory_id, paths FROM screwfix")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()
         
-        return [{"shop_id": 2, "category_code": row[0], "url": row[1], "category_id": row[2], "subcategory_id": row[3]} for row in data]
+        return [{"shop_id": row[0], "category_id": row[1], "subcategory_id": row[2], "paths": row[3]} for row in data]
     except Exception as e:
         print(f"Error connecting to the database: {e}")
         raise e    
-    
+
 def insert_scraped_data(data):
     # Get the secret
     secret = get_secret()
@@ -81,34 +86,19 @@ def insert_scraped_data(data):
         print("Storage database connection successful")
         cursor = conn.cursor()
         enriched_data = data['enrichedData']
+        products = enriched_data['products']
         
-
-        for product in enriched_data:
+        for product in products:
             shop_id = data['shop_id']
             category_id = data['category_id']
             subcategory_id = data['subcategory_id']
-            attributes = product.get('attributes', {})
-            product_name = attributes.get('name', 'No Name Provided')
-            page_url = attributes.get('pdpURL', '')
-            product_description = attributes.get('description', '')
-            features = attributes.get('infoBullets', [])
-            image_url = ''
-            rating = 0.0
-            price = 0.0
-            rating_count = 0
-            
-            if 'pricing' in attributes:
-                price_info = attributes['pricing']
-                price = price_info['currentPrice']['amountIncTax']
-                
-            if 'averageRating' in attributes:
-                average_rating = attributes['averageRating']
-                rating_count = average_rating.get('count', 0)
-                rating = average_rating.get('value', 0.0)
-                        
-            for item in attributes['mediaObjects']:
-                if item['description'] == 'PrimaryImage':
-                    image_url = item['url'].replace('{width}', str(284)).replace('{height}', str(284))
+            product_name = product['longDescription']
+            page_url = f'www.screwfix.co.uk{product["detailPageUrl"]}'
+            features = product['bullets']
+            image_url = product['imageUrl']
+            rating = product.get('starRating', 'No rating') 
+            rating_count = product['numberOfReviews']
+            price = product['priceInformation']['currentPriceIncVat']['amount']
             
             try:
                 cursor.execute(
@@ -139,11 +129,15 @@ def insert_scraped_data(data):
                         OR products.category_id <> EXCLUDED.category_id
                         OR products.subcategory_id <> EXCLUDED.subcategory_id;
                     """,
-                    (shop_id, category_id, subcategory_id, product_name, page_url, product_description, features, image_url, rating, rating_count, price)
+                    (shop_id, category_id, subcategory_id, product_name, page_url, features, image_url, rating, rating_count, price)
                 )
             except Exception as e:
                 print(f"Error inserting product {product_name}: {e}")
-                
+                error_log.append({
+                            "Product name": product_name,
+                            "Page url": page_url,
+                            "error": 'Inserting error'
+                })
         conn.commit()
         cursor.close()
         conn.close()
@@ -151,65 +145,141 @@ def insert_scraped_data(data):
         print(f"Error inserting data into the target database: {e}")
         raise e
 
-def initial_request(category_code):
+
+def initial_request(category_path):        
+    
+    params = {
+        'page_size': '1',
+        'page_start': '0',
+    }
+
     try:
         time.sleep(random.uniform(5, 10))
         response = requests.get(
-            f'https://api.kingfisher.com/v2/mobile/products/TPUK?filter[category]={category_code}&include=content&page[size]=1',
+            f'https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data{category_path}',
+            params=params,
+            cookies=cookies,
             headers=headers,
         )
         response.raise_for_status()  
         return response
     except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred: {http_err}")  
+        print(f"HTTP error occurred: {http_err}")
+        error_log.append({
+                            "Category_code": str(category_path),
+                            "error": str(http_err)
+                })  
     except requests.exceptions.ConnectionError as conn_err:
         print(f"Connection error occurred: {conn_err}")
+        error_log.append({
+                    "Category_code": str(category_path),
+                    "error": str(conn_err)
+        })  
     except requests.exceptions.Timeout as timeout_err:
         print("The request timed out:", timeout_err)
+        error_log.append({
+                    "Category_code": str(category_path),
+                    "error": str(timeout_err)
+        })  
     except requests.exceptions.RequestException as err:
         print("An error occurred while handling your request:", err)
-
+        error_log.append({
+                    "Category_code": str(category_path),
+                    "error": str(err)
+        })  
     return None  
+
 
 def get_total_page_count(response):
     if response and response.status_code == 200:
         try:
             data = response.json()
-            meta = data.get('meta', {})
-            paging = meta.get('paging', None)
-            if paging is None:
-                print("Paging data is missing in the response.")
-                return 0, False
-            total_results = paging.get('totalResults', 0)
-            return total_results, True
+            # Check if the expected keys exist
+            if 'enrichedData' in data and 'totalProducts' in data['enrichedData']:
+                meta = data.get('enrichedData', {})
+                total_results = meta.get('totalProducts', None)
+                return total_results, True
+            else:
+                print("Expected data not found in response")
+                return 0, "Expected data not found in response"
         except json.JSONDecodeError as e:
             print(f"JSON decode error: {e}")
+            return 0, str(e)
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
+            error_log.append({
+                "Response": str(response),
+                "error": str(e)
+            }) 
+            return 0, str(e)
     else:
         print("Failed to fetch data or no response")
-    return 0, False
+        return 0, "Failed to fetch data or no response"
 
-def final_request(category_code, total_results):    
-    max_items_per_page = 200
-    num_pages = (total_results // max_items_per_page) + (1 if total_results % max_items_per_page > 0 else 0)
+
+def final_request(category_path, total_results):        
+
+    params = {
+        'page_size': '100',
+        'page_start': '0',
+    }
+   
+    page_size = int(params['page_size'])
+    num_pages = (total_results // page_size) + (1 if total_results % page_size > 0 else 0)
     print(f'Total number of pages: {num_pages}')
     all_responses = []
-    for page in range(1, num_pages + 1):
-        time.sleep(random.uniform(10, 30))
+    for page in range(num_pages):
+        params['page_start'] = str(page * page_size)
+        time.sleep(random.uniform(10, 20))
         try:
             print(f"Requesting page {page + 1} of {num_pages}")
             response = requests.get(
-                f'https://api.kingfisher.com/v2/mobile/products/TPUK?filter[category]={category_code}&include=content&page[number]={page}&page[size]={max_items_per_page}',
+                f'https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data{category_path}',
+                params=params,
+                cookies=cookies,
                 headers=headers,
             )
             response.raise_for_status()
             all_responses.append(response.json())
-             
-        except requests.exceptions.RequestException as e:
-            print(f"An error occurred during the API request on page {page}: {e}")
+            
+            
+        except requests.exceptions.HTTPError as http_err:
+            print(f"HTTP error occurred during the API request on page {page + 1}: {http_err}")
+            error_log.append({
+                    "Category_code": str(category_path),
+                    "Page": str(page + 1),
+                    "error": str(http_err)
+            })  
+        except requests.exceptions.ConnectionError as conn_err:
+            print(f"Connection error occurred during the API request on page {page + 1}: {conn_err}")
+            error_log.append({
+                    "Category_code": str(category_path),
+                    "Page": str(page + 1),
+                    "error": str(conn_err)
+            })  
+        except requests.exceptions.Timeout as timeout_err:
+            print(f"Timeout occurred during the API request on page {page + 1}: {timeout_err}")
+            error_log.append({
+                    "Category_code": str(category_path),
+                    "Page": str(page + 1),
+                    "error": str(timeout_err)
+            })  
+        except requests.exceptions.RequestException as err:
+            print(f"An error occurred during the API request on page {page + 1}: {err}")
+            error_log.append({
+                    "Category_code": str(category_path),
+                    "Page": str(page + 1),
+                    "error": str(err)
+            })  
+        except Exception as e:
+            print(f"An error occurred during the API request on page {page + 1}: {e}")
+            error_log.append({
+                    "Category_code": str(category_path),
+                    "Page": str(page + 1),
+                    "error": str(e)
+            })  
             continue
-    return all_responses
+    return all_responses 
 
 def scraping_process(task_queue, total_jobs, error_log):
     while not task_queue.empty():
@@ -217,15 +287,14 @@ def scraping_process(task_queue, total_jobs, error_log):
         shop_id = category_path_data['shop_id']
         category_id = category_path_data['category_id']
         subcategory_id = category_path_data['subcategory_id']
-        category_code = category_path_data['category_code']
-        url = category_path_data['url']
+        category_path = category_path_data['paths']
         
         print('Making initial request...')
         try:
-            response = initial_request(category_code)
+            response = initial_request(category_path)
         except Exception as e:
             error_log.append({
-                "path": url,
+                "path": category_path,
                 "error": str(e)
             })
             task_queue.task_done()
@@ -237,7 +306,7 @@ def scraping_process(task_queue, total_jobs, error_log):
             success = success_or_error
         else:
             error_log.append({
-                "path": url,
+                "path": category_path,
                 "error": success_or_error
             })
             task_queue.task_done()
@@ -247,15 +316,15 @@ def scraping_process(task_queue, total_jobs, error_log):
         
         if success:
             print('Making final request...')
-            all_responses = final_request(category_code, total_results)
+            all_responses = final_request(category_path, total_results)
             print('Handling data insertion...')
             total_resposnes = len(all_responses)
             print(f'Inserting {total_resposnes} responses')
             remaining_responses = total_resposnes
             total_products_scraped = 0
             for response_data in all_responses:
-                enriched_data = response_data['data']
-                products_count = len(enriched_data)
+                enriched_data = response_data['enrichedData']
+                products_count = len(enriched_data['products'])
                 total_products_scraped += products_count
                 data_to_insert = {
                     'shop_id': shop_id,
@@ -269,7 +338,7 @@ def scraping_process(task_queue, total_jobs, error_log):
             print(f'Total products scraped: {total_products_scraped}')
         else:
             error_log.append({
-                            "path": url,
+                            "path": category_path,
                             "error": 'Missing paging info'
             })
             continue
@@ -279,24 +348,24 @@ def scraping_process(task_queue, total_jobs, error_log):
         print(f"Jobs left: {jobs_left}/{total_jobs}")
         
 
-def run_tradepoint():
-    category_paths = get_scraping_target_data()
-    task_queue = queue.Queue()
-    error_log = []
-    
-    for path in category_paths:
-        task_queue.put(path)
-    
-    total_jobs = task_queue.qsize()
-    print(f'Total jobs to scrape: {total_jobs}')
+def run_screwfix():
+    try:
+        category_paths = get_scraping_target_data()
+        task_queue = queue.Queue()
+        error_log = []
         
-    scraping_process(task_queue, total_jobs, error_log)
+        for path in category_paths:
+            task_queue.put(path)
+        
+        total_jobs = task_queue.qsize()
+        print(f'Total jobs to scrape: {total_jobs}')
+            
+        scraping_process(task_queue, total_jobs, error_log)
 
-#Send error_log by email AWS SES    
-    with open('error_log.json', 'w') as f:
-        json.dump(error_log, f, indent=4)
-    print("Error log saved to error_log.json")
+        return {"status": "success", "error_log": error_log}
+    except Exception as e:
+        print(f"Error in run_screwfix: {str(e)}")
+        return {"status": "failed", "error": str(e)}
     
 if __name__ == "__main__":
-    run_tradepoint()
- 
+    run_screwfix()
