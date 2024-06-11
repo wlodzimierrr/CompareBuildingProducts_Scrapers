@@ -1,6 +1,7 @@
 from algoliasearch.search_client import SearchClient
 
-from config import conn_to_storagedb, agolia_app_id, agolia_password
+from config import agolia_app_id, agolia_password
+from db_utils import conn_to_storagedb
 
 def fetch_batch(cursor, batch_size=1000):
     while True:
