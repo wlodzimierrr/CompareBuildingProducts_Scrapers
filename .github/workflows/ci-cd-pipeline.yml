@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
@@ -25,19 +25,30 @@ jobs:
           registry-type: private
           skip-logout: false
 
+      - name: Create .env file
+        run: |
+          echo "REGION_NAME=${{ secrets.REGION_NAME }}" >> scraper_factory/src/.env
+          echo "SECRET_NAME=${{ secrets.SECRET_NAME }}" >> scraper_factory/src/.env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS }}" >> scraper_factory/src/.env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_ID }}" >> scraper_factory/src/.env
+
       - name: Build, tag, and push image to AWS ECR
         run: |
-          docker build -t scraper_factory -f scraper_factory/Dockerfile scraper_factory
+          docker build -t scraper_factory scraper_factory
           docker tag scraper_factory:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/scraper_factory:latest
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/scraper_factory:latest
+
+      - name: Cleanup .env file
+        if: always()
+        run: rm -f scraper_factory/src/.env
 
       - name: Deploy to AWS
         run: |
           echo "Deploy step goes here"
           # Add your deployment scripts here, possibly using AWS CLI
 
-    env:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+env:
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
