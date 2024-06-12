@@ -14,32 +14,54 @@ def prepare_records(records):
     algolia_records = []
     for row in records:
         record = {
-           "objectID": row[0],  
+            "objectID": row[0],  
             "product_id": row[0],
             "shop_id": row[1],
-            "category_id": row[2],
-            "subcategory_id": row[3],
-            "product_name": row[4],
-            "product_description": row[5],
-            "price": row[6],
-            "rating_count": row[7],
-            "rating": row[8],
-            "image_url": row[9],
-            "updated_at": row[10],
-            "created_at": row[11],
-            "page_url": row[12],
-            "features": row[13]
+            "category_name": row[12],
+            "subcategory_name": row[13],
+            "product_name": row[2],
+            "product_description": row[3],
+            "price": row[4],
+            "rating_count": row[5],
+            "rating": row[6],
+            "image_url": row[7],
+            "updated_at": row[8],
+            "created_at": row[9],
+            "page_url": row[10],
+            "features": row[11]
         }
         algolia_records.append(record)
     return algolia_records
-
 
 def insert_agolia():
     try:
         conn = conn_to_storagedb()
         print("Storage database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM products")
+        cursor.execute(
+            """
+            SELECT 
+                p.product_id,
+                p.shop_id,
+                p.product_name,
+                p.product_description,
+                p.price,
+                p.rating_count,
+                p.rating,
+                p.image_url,
+                p.updated_at,
+                p.created_at,
+                p.page_url,
+                p.features,
+                c.category_name,
+                s.subcategory_name
+            FROM 
+                products p
+            JOIN 
+                categories c ON p.category_id = c.category_id
+            JOIN 
+                subcategories s ON p.subcategory_id = s.subcategory_id;
+            """)
         client = SearchClient.create(agolia_app_id, agolia_password)
         print("Agolia connection successful")
         
