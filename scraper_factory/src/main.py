@@ -15,17 +15,17 @@ def start_tradepoint():
         tradepoint_output = run_tradepoint()
         if tradepoint_output['status'] == 'success':
             if tradepoint_output['error_log']:  
-                error_message = f"Error log:\n{str(tradepoint_output['error_log'])}"
-                unsuccessfull_msg = "Task Tradepoint", "Tradepoint Scraper has finished running with some errors.\n" + error_message
-                send_email(unsuccessfull_msg)
+                error_message = f"Error log:\n{tradepoint_output['error_log']}"
+                unsuccessfull_msg = ("Task Tradepoint", f"Tradepoint Scraper has finished running with some errors.\n{error_message}")
+                send_email(*unsuccessfull_msg)
                 return unsuccessfull_msg
             else:
-                successfull_msg = "Task Tradepoint", "Tradepoint Scraper has finished running successfully with no errors."
-                send_email(successfull_msg)
+                successfull_msg = ("Task Tradepoint", "Tradepoint Scraper has finished running successfully with no errors.")
+                send_email(*successfull_msg)
                 return successfull_msg
         else:
-            failed_msg = "Task Failed", f"An error occurred: {tradepoint_output['error']}"
-            send_email(failed_msg)
+            failed_msg = ("Task Failed", f"An error occurred: {tradepoint_output['error']}")
+            send_email(*failed_msg)
             return failed_msg
     except Exception as e:
         tradepoint_output = {"status": "failed", "error": str(e)}
@@ -37,17 +37,17 @@ def start_screwfix():
         screwfix_output = run_screwfix()
         if screwfix_output['status'] == 'success':
             if screwfix_output['error_log']:  
-                error_message = f"Error log:\n{str(screwfix_output['error_log'])}"
-                unsuccessfull_msg = "Task Screwfix", "Screwfix Scraper has finished running with some errors.\n" + error_message
-                send_email(unsuccessfull_msg)
+                error_message = f"Error log:\n{screwfix_output['error_log']}"
+                unsuccessfull_msg = ("Task Screwfix", f"Screwfix Scraper has finished running with some errors.\n{error_message}")
+                send_email(*unsuccessfull_msg)
                 return unsuccessfull_msg
             else:
-                successfull_msg = "Task Screwfix", "Screwfix Scraper has finished running successfully with no errors."
-                send_email(successfull_msg)
+                successfull_msg = ("Task Screwfix", "Screwfix Scraper has finished running successfully with no errors.")
+                send_email(*successfull_msg)
                 return successfull_msg
         else:
-            failed_msg = "Task Failed", f"An error occurred: {screwfix_output['error']}"
-            send_email(failed_msg)
+            failed_msg = ("Task Failed", f"An error occurred: {screwfix_output['error']}")
+            send_email(*failed_msg)
             return failed_msg
     except Exception as e:
         screwfix_output = {"status": "failed", "error": str(e)}
