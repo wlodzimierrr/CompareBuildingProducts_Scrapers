@@ -31,4 +31,8 @@ jobs:
 
 env:
   AWS_ACCOUNT_ID: your-aws-account-id
+<<<<<<< HEAD
   AWS_REGION: your-aws-region
+=======
+  AWS_REGION: your-aws-region
+>>>>>>> aee12592b4fde1be4a2bc3e5786f255c71b9df17
