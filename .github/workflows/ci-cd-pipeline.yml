@@ -1,0 +1,34 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to AWS ECR
+        run: |
+          docker build -t scraper_factory .
+          docker tag scraper_factory:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/myapp:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/scraper_factory:latest
+
+      - name: Deploy to AWS
+        run: |
+          echo "Deploy step goes here"
+          # Add your deployment scripts here, possibly using AWS CLI
+
+env:
+  AWS_ACCOUNT_ID: your-aws-account-id
+  AWS_REGION: your-aws-region
