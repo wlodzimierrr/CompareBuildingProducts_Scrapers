@@ -225,7 +225,7 @@ def final_request(category_code, total_results):
     print(f'Total number of pages: {num_pages}')
     all_responses = []
     for page in range(1, num_pages + 1):
-        time.sleep(random.uniform(10, 30))
+        time.sleep(random.uniform(5, 10))
         try:
             print(f"Requesting page {page} of {num_pages}")
             response = requests.get(

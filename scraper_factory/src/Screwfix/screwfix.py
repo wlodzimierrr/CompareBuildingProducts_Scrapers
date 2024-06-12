@@ -93,7 +93,7 @@ def insert_scraped_data(data):
             category_id = data['category_id']
             subcategory_id = data['subcategory_id']
             product_name = product['longDescription']
-            page_url = f'www.screwfix.co.uk{product["detailPageUrl"]}'
+            page_url = f'https://www.screwfix.co.uk{product["detailPageUrl"]}'
             features = product['bullets']
             image_url = product['imageUrl']
             rating = product.get('starRating', 'No rating') 
@@ -230,7 +230,7 @@ def final_request(category_path, total_results):
     all_responses = []
     for page in range(num_pages):
         params['page_start'] = str(page * page_size)
-        time.sleep(random.uniform(10, 20))
+        time.sleep(random.uniform(5, 10))
         try:
             print(f"Requesting page {page + 1} of {num_pages}")
             response = requests.get(

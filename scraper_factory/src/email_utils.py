@@ -3,8 +3,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-
-region_name = os.getenv('REGION_NAME')
+from config import region_name 
 
 def send_email(subject, body):
     ses = boto3.client('ses', region_name)  

@@ -8,6 +8,7 @@ from Tradepoint.tradepoint import run_tradepoint
 from Screwfix.screwfix import run_screwfix
 from email_utils import send_email
 from agolia_utils import insert_agolia
+from lambda_ec2_stop import stop_ec2
 
 def start_tradepoint():
     try:
@@ -61,6 +62,9 @@ def main():
     print('Inserting new data to Agolia Search...')
     insert_agolia()
     return 'Scraping Done! New data is updated in the Agolia Serarch', tradepoint_result, screwfix_result
+
+print('Stopping EC2 instace...')
+stop_ec2()
 
 if __name__ == '__main__':
     main()
