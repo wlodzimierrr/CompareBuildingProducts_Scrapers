@@ -29,8 +29,6 @@ jobs:
         run: |
           echo "REGION_NAME=${{ secrets.REGION_NAME }}" >> scraper_factory/src/.env
           echo "SECRET_NAME=${{ secrets.SECRET_NAME }}" >> scraper_factory/src/.env
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS }}" >> scraper_factory/src/.env
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_ID }}" >> scraper_factory/src/.env
 
       - name: Build, tag, and push image to AWS ECR
         run: |
@@ -50,5 +48,3 @@ jobs:
 env:
   AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
