@@ -61,10 +61,9 @@ def main():
     screwfix_result = start_screwfix()
     print('Inserting new data to Agolia Search...')
     insert_agolia()
-    return 'Scraping Done! New data is updated in the Agolia Serarch', tradepoint_result, screwfix_result
-
-print('Stopping EC2 instace...')
-stop_ec2()
+    print(f'Scraping Done! New data is updated in the Agolia Serarch.\n{tradepoint_result}\n{screwfix_result}')
+    print('Stopping EC2 instance...')
+    stop_ec2()
 
 if __name__ == '__main__':
     main()
