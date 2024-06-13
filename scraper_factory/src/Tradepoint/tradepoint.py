@@ -23,7 +23,7 @@ def get_scraping_target_data():
         conn = conn_to_pathsdb()
         print("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT category_code, url, category_id, subcategory_id FROM tradepoint LIMIT 1")  
+        cursor.execute("SELECT category_code, url, category_id, subcategory_id FROM tradepoint")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()
