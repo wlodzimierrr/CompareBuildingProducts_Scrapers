@@ -8,51 +8,19 @@ import time
 import queue
 import os
 import sys
-from dotenv import load_dotenv
-load_dotenv()
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from .cookies_headers import headers
 
+from db_utils import conn_to_pathsdb, conn_to_storagedb
+
 error_log = []
 
-# Secret name and region
-secret_name = os.getenv('SECRET_NAME')
-region_name = os.getenv('REGION_NAME')
-
-def get_secret():
-    session = boto3.session.Session()
-    client = session.client(service_name='secretsmanager', region_name=region_name)
-    
-    try:
-        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
-    except Exception as e:
-        print(f"Error retrieving secret: {e}")
-        raise e
-    
-    secret = get_secret_value_response['SecretString']
-    return json.loads(secret)
-
 def get_scraping_target_data():
-    # Get the secret
-    secret = get_secret()
-
-    # Extract credentials from the secret
-    db_host = secret['host']
-    db_paths = secret['dbpaths']
-    db_user = secret['username']
-    db_password = secret['password']
-    db_port = secret['port'] 
 
     # Connect to PostgreSQL database using psycopg2
     try:
-        conn = psycopg2.connect(
-            host=db_host,
-            database=db_paths,
-            user=db_user,
-            password=db_password,
-            port=db_port
-        )
+        conn = conn_to_pathsdb()
         print("Paths database connection successful")
         cursor = conn.cursor()
         cursor.execute("SELECT category_code, url, category_id, subcategory_id FROM tradepoint LIMIT 1")  
@@ -66,28 +34,13 @@ def get_scraping_target_data():
         raise e    
     
 def insert_scraped_data(data):
-    # Get the secret
-    secret = get_secret()
-
-    # Extract credentials from the secret
-    db_host = secret['host']
-    db_storage = secret['dbstorage']
-    db_user = secret['username']
-    db_password = secret['password']
-    db_port = secret['port'] 
+    
     try:
-        conn = psycopg2.connect(
-            host=db_host,
-            database=db_storage,
-            user=db_user,
-            password=db_password,
-            port=db_port
-        )
+        conn = conn_to_storagedb()
         print("Storage database connection successful")
         cursor = conn.cursor()
         enriched_data = data['enrichedData']
         
-
         for product in enriched_data:
             shop_id = data['shop_id']
             category_id = data['category_id']
