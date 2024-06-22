@@ -47,7 +47,7 @@ def insert_scraped_data(data):
             category_id = data['category_id']
             subcategory_id = data['subcategory_id']
             product_name = product['longDescription']
-            page_url = f'https://www.screwfix.co.uk{product["detailPageUrl"]}'
+            page_url = f'https://www.screwfix.com{product["detailPageUrl"]}'
             features = product['bullets']
             image_url = product['imageUrl']
             rating = product.get('starRating', 'No rating') 
