@@ -1,13 +1,16 @@
+./github/workflows/ci-cd-pipeline.yml
 scraper_factory/
 │
 ├── src/                          # Source files
 │   ├── __init__.py               # Makes src a Python package
-|   |__ .env                      # env 
+|   ├── .env                      # env 
 │   ├── main.py                   # Main application entry point
 │   ├── config.py                 # Centralized configuration management
 │   ├── email_utils.py            # Email functionalities
 │   ├── db_utils.py               # Database interaction utilities
 │   ├── api_utils.py              # API handling utilities
+|   ├── agolia_utils.py
+|   ├── lambda_ec2_stop.py
 │   ├── tradepoint/               # Tradepoint specific module
 │   │   ├── __init__.py           # Makes tradepoint a Python package
 │   │   ├── tradepoint.py         # Tradepoint specific functions
@@ -29,6 +32,7 @@ scraper_factory/
 ├── scripts/                      # Scripts for maintenance and setup
 │   └── ...
 │
+├── Dockerfile
 ├── requirements.txt              # Project dependencies
 ├── README.md                     # Project overview
 └── LICENSE                       # Licensing information

@@ -53,14 +53,15 @@ def insert_scraped_data(data):
             rating = product.get('starRating', 'No rating') 
             rating_count = product['numberOfReviews']
             price = product['priceInformation']['currentPriceIncVat']['amount']
+    
             
             try:
                 cursor.execute(
                     """
                     INSERT INTO products (
-                        shop_id, category_id, subcategory_id, product_name, page_url, features, image_url, rating, rating_count, price, created_at, updated_at
+                        shop_id, category_id, subcategory_id, product_name, page_url, features, image_url, rating, rating_count, price, created_at, updated_at, last_checked_at
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                     ON CONFLICT (page_url) DO UPDATE SET
                         shop_id = EXCLUDED.shop_id,
@@ -72,7 +73,8 @@ def insert_scraped_data(data):
                         rating = EXCLUDED.rating,
                         rating_count = EXCLUDED.rating_count,
                         price = EXCLUDED.price,
-                        updated_at = CURRENT_TIMESTAMP
+                        updated_at = CURRENT_TIMESTAMP,
+                        last_checked_at = CURRENT_TIMESTAMP
                     WHERE
                         products.price <> EXCLUDED.price
                         OR products.product_name <> EXCLUDED.product_name
