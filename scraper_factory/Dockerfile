@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /scraper_factory
 COPY ./src/.env /scraper_factory/src/.env
 
-EXPOSE 5000
+EXPOSE 5000         
 
 CMD ["python", "-u", "/scraper_factory/src/main.py"]
 

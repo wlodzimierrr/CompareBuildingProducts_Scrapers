@@ -40,27 +40,32 @@ def insert_agolia():
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT 
-                p.product_id,
-                p.shop_id,
-                p.product_name,
-                p.product_description,
-                p.price,
-                p.rating_count,
-                p.rating,
-                p.image_url,
-                p.updated_at,
-                p.created_at,
-                p.page_url,
-                p.features,
-                c.category_name,
-                s.subcategory_name
-            FROM 
-                products p
-            JOIN 
-                categories c ON p.category_id = c.category_id
-            JOIN 
-                subcategories s ON p.subcategory_id = s.subcategory_id;
+                SELECT 
+                    p.product_id,
+                    p.shop_id,
+                    p.product_name,
+                    p.product_description,
+                    p.price,
+                    p.rating_count,
+                    p.rating,
+                    p.image_url,
+                    p.updated_at,
+                    p.created_at,
+                    p.page_url,
+                    p.features,
+                    p.category_id,
+                    p.subcategory_id,
+                    p.last_checked_at,
+                    c.category_name,
+                    s.subcategory_name
+                FROM 
+                    products p
+                JOIN 
+                    categories c ON p.category_id = c.category_id
+                JOIN 
+                    subcategories s ON p.subcategory_id = s.subcategory_id
+                WHERE 
+                    p.last_checked_at >= NOW() - INTERVAL 1 DAY;
             """)
         client = SearchClient.create(agolia_app_id, agolia_password)
         print("Agolia connection successful")
@@ -73,8 +78,13 @@ def insert_agolia():
             algolia_records = prepare_records(batch)
             temp_index.save_objects(algolia_records)
             
+        print('Renaming current main index to a backup index...')
+        client.move_index('main_index', 'backup_index')
+        
         print('Replacing the main index with the temporary index...')
         client.move_index('temp_index', 'main_index')
+
+        print('Indexing complete. Old main index saved as backup index.')
 
         cursor.close()
         conn.close()
