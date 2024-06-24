@@ -50,8 +50,8 @@ def insert_scraped_data(data):
             page_url = f'https://www.screwfix.com{product["detailPageUrl"]}'
             features = product['bullets']
             image_url = product['imageUrl']
-            rating = product.get('starRating', 'No rating') 
-            rating_count = product['numberOfReviews']
+            rating = product.get('starRating', 0.0) 
+            rating_count = product.get('numberOfReviews', 0)
             price = product['priceInformation']['currentPriceIncVat']['amount']
     
             
