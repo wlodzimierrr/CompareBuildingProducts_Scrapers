@@ -11,7 +11,7 @@ Additionally, the system utilizes AWS SES to email logs and error notifications,
 * **Data:** There are two databases: one for paths to scrape, which consists of different shops, and another for the products with normalised data from different shops."
 * **Email Notifications:** Utilizes AWS SES for sending operational logs and error notifications.
 * **Scrapers:** Python modules for extracting product data from various online stores.
-* **CI/CD Pipeline:** Automated using GitHub Actions back-end (front end is deployed on Render, which builds with commits anyway), builds and deploys Docker containers to AWS ECR.
+* **CI/CD Pipeline:** Automated using GitHub Actions, builds and deploys Docker containers to AWS ECR.
 ## Repositories
 * Front End: [CompareBuildingProducts_Web](https://github.com/wlodzimierrr/CompareBuildingProducts_Web)
 * Back End: This repository.
