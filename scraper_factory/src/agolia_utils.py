@@ -13,6 +13,10 @@ def fetch_batch(cursor, batch_size=1000):
 def prepare_records(records):
     algolia_records = []
     for row in records:
+        rating = row[6]
+        if rating == 'no.rating':
+            rating = '0.0'
+        
         record = {
             "objectID": row[0],  
             "product_id": row[0],
@@ -23,7 +27,7 @@ def prepare_records(records):
             "product_description": row[3],
             "price": row[4],
             "rating_count": row[5],
-            "rating": row[6],
+            "rating": rating,
             "image_url": row[7],
             "updated_at": row[8],
             "created_at": row[9],
@@ -32,6 +36,7 @@ def prepare_records(records):
         }
         algolia_records.append(record)
     return algolia_records
+
 
 def insert_agolia():
     try:
@@ -55,7 +60,6 @@ def insert_agolia():
                     p.features,
                     p.category_id,
                     p.subcategory_id,
-                    p.last_checked_at,
                     c.category_name,
                     s.subcategory_name
                 FROM 
@@ -64,8 +68,6 @@ def insert_agolia():
                     categories c ON p.category_id = c.category_id
                 JOIN 
                     subcategories s ON p.subcategory_id = s.subcategory_id
-                WHERE 
-                    p.last_checked_at >= NOW() - INTERVAL 1 DAY;
             """)
         client = SearchClient.create(agolia_app_id, agolia_password)
         print("Agolia connection successful")
