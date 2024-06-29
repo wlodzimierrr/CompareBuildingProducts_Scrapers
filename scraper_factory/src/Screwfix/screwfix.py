@@ -73,17 +73,19 @@ def insert_scraped_data(data):
                         rating = EXCLUDED.rating,
                         rating_count = EXCLUDED.rating_count,
                         price = EXCLUDED.price,
-                        updated_at = CURRENT_TIMESTAMP,
-                        last_checked_at = CURRENT_TIMESTAMP
-                    WHERE
-                        products.price <> EXCLUDED.price
-                        OR products.product_name <> EXCLUDED.product_name
-                        OR products.features <> EXCLUDED.features
-                        OR products.image_url <> EXCLUDED.image_url
-                        OR products.rating <> EXCLUDED.rating
-                        OR products.rating_count <> EXCLUDED.rating_count
-                        OR products.category_id <> EXCLUDED.category_id
-                        OR products.subcategory_id <> EXCLUDED.subcategory_id;
+                        updated_at = CASE
+                            WHEN products.price <> EXCLUDED.price
+                                OR products.product_name <> EXCLUDED.product_name
+                                OR products.features <> EXCLUDED.features
+                                OR products.image_url <> EXCLUDED.image_url
+                                OR products.rating <> EXCLUDED.rating
+                                OR products.rating_count <> EXCLUDED.rating_count
+                                OR products.category_id <> EXCLUDED.category_id
+                                OR products.subcategory_id <> EXCLUDED.subcategory_id
+                            THEN CURRENT_TIMESTAMP
+                            ELSE products.updated_at
+                        END,
+                        last_checked_at = CURRENT_TIMESTAMP;
                     """,
                     (shop_id, category_id, subcategory_id, product_name, page_url, features, image_url, rating, rating_count, price)
                 )

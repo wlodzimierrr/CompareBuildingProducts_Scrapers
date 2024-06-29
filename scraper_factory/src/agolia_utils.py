@@ -21,8 +21,11 @@ def prepare_records(records):
             "objectID": row[0],  
             "product_id": row[0],
             "shop_id": row[1],
-            "category_name": row[12],
-            "subcategory_name": row[13],
+            "category_id": row[12],
+            "subcategory_id": row[13],
+            "last_checked_at": row[14],
+            "category_name": row[15],
+            "subcategory_name": row[16],
             "product_name": row[2],
             "product_description": row[3],
             "price": row[4],
@@ -60,6 +63,7 @@ def insert_agolia():
                     p.features,
                     p.category_id,
                     p.subcategory_id,
+                    p.last_checked_at,
                     c.category_name,
                     s.subcategory_name
                 FROM 
@@ -69,6 +73,7 @@ def insert_agolia():
                 JOIN 
                     subcategories s ON p.subcategory_id = s.subcategory_id
             """)
+        
         client = SearchClient.create(agolia_app_id, agolia_password)
         print("Agolia connection successful")
         
@@ -93,3 +98,5 @@ def insert_agolia():
     except Exception as e:
         print(f"Error when inserting the data to Agolia Search: {e}")
         raise e    
+    
+insert_agolia()
