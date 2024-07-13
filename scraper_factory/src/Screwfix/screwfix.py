@@ -20,7 +20,7 @@ def get_scraping_target_data():
         conn = conn_to_pathsdb()
         logging.info("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT shop_id, category_id, subcategory_id, paths FROM screwfix LIMIT 1")  
+        cursor.execute("SELECT shop_id, category_id, subcategory_id, paths FROM screwfix")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()

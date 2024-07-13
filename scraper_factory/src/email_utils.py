@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import os
+import logging
 
 def send_email(subject, body, attachment=None):
     ses = boto3.client('ses', region_name)
@@ -34,5 +35,5 @@ def send_email(subject, body, attachment=None):
         )
         return response
     except Exception as e:
-        print(f"Error sending email: {str(e)}")
+        logging.error(f"Error sending email: {str(e)}")
         return None

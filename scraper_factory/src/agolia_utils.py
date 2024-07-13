@@ -45,7 +45,7 @@ def prepare_records(records):
 def insert_agolia():
     try:
         conn = conn_to_storagedb()
-        print("Storage database connection successful")
+        logging.info("Storage database connection successful")
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -80,10 +80,10 @@ def insert_agolia():
         client = SearchClient.create(agolia_app_id, agolia_password)
         logging.info("Agolia connection successful")
         
-        print('Creating temporary index...')
+        logging.info('Creating temporary index...')
         temp_index = client.init_index('temp_index')
 
-        print('Processing data in batches')
+        logging.info('Processing data in batches')
         for batch in fetch_batch(cursor, batch_size=1000):
             algolia_records = prepare_records(batch)
             temp_index.save_objects(algolia_records)
