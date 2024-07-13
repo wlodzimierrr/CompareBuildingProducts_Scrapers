@@ -1,4 +1,5 @@
 import psycopg2
+import logging
 from config import db_host, db_password, db_paths, db_storage, db_port, db_user
 
 def conn_to_pathsdb():
@@ -10,10 +11,10 @@ def conn_to_pathsdb():
             password=db_password,
             port=db_port
         )
-        print("Connection successful")
+        logging.info("Connection successful")
         return conn
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
         return e
     
 def conn_to_storagedb():
@@ -25,8 +26,8 @@ def conn_to_storagedb():
             password=db_password,
             port=db_port
         )
-        print("Connection successful")
+        logging.info("Connection successful")
         return conn
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
         return e

@@ -17,7 +17,7 @@ def get_secret():
     try:
         get_secret_value_response = client.get_secret_value(SecretId=secret_name)
     except Exception as e:
-        print(f"Error retrieving secret: {e}")
+        logging.error(f"Error retrieving secret: {e}")
         raise e
     
     secret = get_secret_value_response['SecretString']

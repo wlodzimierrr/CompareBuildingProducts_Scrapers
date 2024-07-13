@@ -1,28 +1,38 @@
 import boto3
+from config import region_name
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+import os
 
-from config import region_name 
+def send_email(subject, body, attachment=None):
+    ses = boto3.client('ses', region_name)
+    msg = MIMEMultipart()
+    msg['Subject'] = subject
+    msg['From'] = 'cbm.comparebuildingmaterials@gmail.com'
+    msg['To'] = 'szerszywlodzimierz@gmail.com'
 
-def send_email(subject, body):
-    ses = boto3.client('ses', region_name)  
+    msg.attach(MIMEText(body, 'plain'))
+
+    if attachment:
+        with open(attachment, "rb") as file:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(file.read())
+        encoders.encode_base64(part)
+        part.add_header(
+            "Content-Disposition",
+            f"attachment; filename= {os.path.basename(attachment)}",
+        )
+        msg.attach(part)
+
     try:
-        response = ses.send_email(
-            Source='cbm.comparebuildingmaterials@gmail.com',
-            Destination={
-                'ToAddresses': [
-                    'szerszywlodzimierz@gmail.com'
-                ]
-            },
-            Message={
-                'Subject': {
-                    'Data': subject
-                },
-                'Body': {
-                    'Text': {
-                        'Data': body
-                    }
-                }
-            }
+        response = ses.send_raw_email(
+            Source=msg['From'],
+            Destinations=[msg['To']],
+            RawMessage={'Data': msg.as_string()}
         )
         return response
     except Exception as e:
         print(f"Error sending email: {str(e)}")
+        return None

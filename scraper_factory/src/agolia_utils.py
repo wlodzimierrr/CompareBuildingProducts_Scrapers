@@ -1,4 +1,5 @@
 from algoliasearch.search_client import SearchClient
+import logging
 
 from config import agolia_app_id, agolia_password
 from db_utils import conn_to_storagedb
@@ -72,10 +73,12 @@ def insert_agolia():
                     categories c ON p.category_id = c.category_id
                 JOIN 
                     subcategories s ON p.subcategory_id = s.subcategory_id
+                WHERE
+                    p.last_checked_at >= NOW() - INTERVAL '24 hours';
             """)
         
         client = SearchClient.create(agolia_app_id, agolia_password)
-        print("Agolia connection successful")
+        logging.info("Agolia connection successful")
         
         print('Creating temporary index...')
         temp_index = client.init_index('temp_index')
@@ -85,18 +88,16 @@ def insert_agolia():
             algolia_records = prepare_records(batch)
             temp_index.save_objects(algolia_records)
             
-        print('Renaming current main index to a backup index...')
+        logging.info('Renaming current main index to a backup index...')
         client.move_index('main_index', 'backup_index')
         
-        print('Replacing the main index with the temporary index...')
+        logging.info('Replacing the main index with the temporary index...')
         client.move_index('temp_index', 'main_index')
 
-        print('Indexing complete. Old main index saved as backup index.')
+        logging.info('Indexing complete. Old main index saved as backup index.')
 
         cursor.close()
         conn.close()
     except Exception as e:
-        print(f"Error when inserting the data to Agolia Search: {e}")
+        logging.error(f"Error when inserting the data to Agolia Search: {e}")
         raise e    
-    
-insert_agolia()
