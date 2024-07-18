@@ -2,16 +2,18 @@ import sys
 import os
 import logging
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 main_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(main_dir)
 
 log_dir = '/home/ec2-user/logs'
+# log_dir = '/home/wlodzimierrr/Desktop'
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, f'scraper_{datetime.now().strftime("%d-%m-%y")}.log')
 
 logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(levelname)s - %(module)s - %(message)s',
     datefmt='%d-%m-%y %H:%M:%S',
     level=logging.INFO,
     handlers=[
@@ -22,7 +24,7 @@ logging.basicConfig(
 
 from Tradepoint.tradepoint import run_tradepoint
 from Screwfix.screwfix import run_screwfix
-from Wickes.wickes import run_wickes 
+from Wickes.wickes import run_wickes
 from email_utils import send_email
 from agolia_utils import insert_agolia
 from lambda_ec2_stop import stop_ec2
@@ -32,7 +34,7 @@ def start_tradepoint():
         logging.info('Starting Tradepoint scraper...')
         tradepoint_output = run_tradepoint()
         if tradepoint_output['status'] == 'success':
-            if tradepoint_output['error_log']:  
+            if tradepoint_output['error_log']:
                 unsuccessfull_msg = ("Task Tradepoint", "Tradepoint Scraper has finished running with some errors. See the attached log file.", log_file)
                 send_email(*unsuccessfull_msg)
                 logging.warning('Tradepoint scraper finished with errors.')
@@ -58,7 +60,7 @@ def start_screwfix():
         logging.info('Starting Screwfix scraper...')
         screwfix_output = run_screwfix()
         if screwfix_output['status'] == 'success':
-            if screwfix_output['error_log']:  
+            if screwfix_output['error_log']:
                 unsuccessfull_msg = ("Task Screwfix", "Screwfix Scraper has finished running with some errors. See the attached log file.", log_file)
                 send_email(*unsuccessfull_msg)
                 logging.warning('Screwfix scraper finished with errors.')
@@ -78,7 +80,6 @@ def start_screwfix():
         send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
         logging.error('An error occurred in Screwfix scraper: %s', e)
     return screwfix_output
-
 
 def start_wickes():
     try:
@@ -109,24 +110,34 @@ def start_wickes():
 def main():
     try:
         logging.info('Starting main function...')
-        
-        logging.info('Starting tradepoint.py')
-        tradepoint_result = start_tradepoint()
-        
-        logging.info('Starting screwfix.py')
-        screwfix_result = start_screwfix()
 
-        logging.info('Starting wickes.py')
-        wickes_result = start_wickes()
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {
+                executor.submit(start_tradepoint): 'tradepoint',
+                executor.submit(start_screwfix): 'screwfix',
+                executor.submit(start_wickes): 'wickes'
+            }
+
+            results = {}
+            for future in as_completed(futures):
+                scraper = futures[future]
+                try:
+                    result = future.result()
+                    results[scraper] = result
+                    logging.info(f'{scraper} scraper result: {result}')
+                except Exception as e:
+                    logging.error(f'{scraper} scraper generated an exception: {e}')
+                    results[scraper] = {"status": "failed", "error": str(e)}
+                    send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
 
         logging.info('Inserting new data to Agolia Search...')
         insert_agolia()
-        
-        logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{tradepoint_result}\n{screwfix_result}\n{wickes_result}')
-        
+
+        logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
+
         logging.info('Stopping EC2 instance...')
         stop_ec2()
-        
+
         logging.info('Main function execution completed.')
 
     except Exception as e:
