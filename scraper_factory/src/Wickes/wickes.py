@@ -1,12 +1,11 @@
 import requests
 import json
-import random
-import time
 import queue
 import os
 import sys
 import logging
 from bs4 import BeautifulSoup
+import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -14,60 +13,143 @@ from db_utils import conn_to_pathsdb, conn_to_storagedb
 
 error_log = []
 
-initial_urls = []
-
 def get_scraping_initial_target_data():
     """Retrieve scraping target data from paths database."""
     try:
-        with open('wickes_urls.csv', 'r', newline='', encoding='utf-8') as csvfile:
-            reader = csv.reader(csvfile)
-            for row in reader:
-                if row:  
-                    initial_urls.append(row[0].strip())  
+        conn = conn_to_pathsdb()
         logging.info("Paths database connection successful")
-        
-        return [{"shop_id": 4, "category_code": 0, "url": url, "category_id": 0, "subcategory_id": 0} for url in initial_urls]
+        cursor = conn.cursor()
+        cursor.execute("SELECT shop_id, category_id, subcategory_id, paths FROM wickes")  
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return [{"shop_id": row[0], "category_id": row[1], "subcategory_id": row[2], "paths": row[3]} for row in data]
     except Exception as e:
         logging.error(f"Error connecting to the database: {e}")
         raise e
-    
-final_urls = []    
+
 
 def get_scraping_final_target_data():
     """Retrieve scraping target data from paths database."""
     try:
-        with open('wickes_products.csv', 'r', encoding='utf-8') as csvfile:
-            reader = csv.reader(csvfile)
-            next(reader, None) 
-            for row in reader:
-                  final_urls.append(row[4]) 
-        logging.info("Paths database connection successful")
-        
-        return [{"page_url": url} for url in final_urls]
+        conn = conn_to_storagedb()
+        logging.info("Products database connection successful")
+        cursor = conn.cursor()
+        cursor.execute("SELECT page_url FROM products WHERE shop_id = '4' ")  
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return [{"page_url": row[0]} for row in data]
     except Exception as e:
         logging.error(f"Error connecting to the database: {e}")
         raise e
-
-
+    
 def initial_insert_scraped_data(products, error_log):
-    """Insert scraped data into the storage database."""
+    """Insert initial scraped data into the storage database."""
     try:
-        csv_file = 'wickes_products.csv'
-        with open(csv_file, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            for product in products:
-                writer.writerow([product['shop_id'], product['category_id'], product['subcategory_id'], product['product_name'], product['page_url'], product['image_url'], product['price'], product['rating'], product['rating_count']])
+        conn = conn_to_storagedb()
+        logging.info("Storage database connection successful")
+        cursor = conn.cursor()
+        
+        for product in products:
+            shop_id = product['shop_id']
+            category_id = product['category_id']
+            product_name = product['product_name']
+            page_url = product['page_url']
+            image_url = product['image_url']
+            subcategory_id = product['subcategory_id']
+            price = product['price']
+    
+            try:
+                cursor.execute(
+                    """
+                    INSERT INTO products (
+                        shop_id, category_id, subcategory_id, product_name, page_url, image_url, price, created_at, updated_at, last_checked_at
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    )
+                    ON CONFLICT (page_url) DO UPDATE SET
+                        shop_id = EXCLUDED.shop_id,
+                        category_id = EXCLUDED.category_id,
+                        subcategory_id = EXCLUDED.subcategory_id,
+                        product_name = EXCLUDED.product_name,
+                        image_url = EXCLUDED.image_url,
+                        price = EXCLUDED.price,
+                        updated_at = CASE
+                            WHEN products.price <> EXCLUDED.price
+                                OR products.product_name <> EXCLUDED.product_name
+                                OR products.image_url <> EXCLUDED.image_url
+                                OR products.category_id <> EXCLUDED.category_id
+                                OR products.subcategory_id <> EXCLUDED.subcategory_id
+                            THEN CURRENT_TIMESTAMP
+                            ELSE products.updated_at
+                        END,
+                        last_checked_at = CURRENT_TIMESTAMP;
+                    """,
+                    (shop_id, category_id, subcategory_id, product_name, page_url, image_url, price)
+                )
+            except Exception as e:
+                logging.error(f"Error inserting product {product_name}: {e}")
+                error_log.append({
+                    "Product name": product_name,
+                    "Page url": page_url,
+                    "error": 'Inserting error'
+                })
+        conn.commit()
+        cursor.close()
+        conn.close()
     except Exception as e:
         logging.error(f"Error inserting data into the target database: {e}")
         raise e
 
 def final_insert_scraped_data(product, error_log):
-    """Insert scraped data into the storage database."""
+    """Insert final scraped data into the storage database."""
     try:
-        csv_file = 'wickes_products_final.csv'
-        with open(csv_file, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([product['media'], product['page_url'], product['features'], product['rating'], product['rating_count'], product['price']])
+        conn = conn_to_storagedb()
+        logging.info("Storage database connection successful")
+        cursor = conn.cursor()
+    
+        page_url = product['page_url']
+        description = product['description']
+        features = product.get('features', '')
+        rating = product['rating']
+        rating_count = product['rating_count']
+        price = product['price']
+        
+        try:
+            cursor.execute(
+                """
+                UPDATE products
+                SET
+                    product_description = %s,
+                    features = %s,
+                    rating = %s,
+                    rating_count = %s,
+                    price = %s,
+                    updated_at = CASE
+                        WHEN products.price <> %s
+                            OR products.rating <> %s
+                            OR products.features <> %s
+                            OR products.rating_count <> %s
+                            OR products.product_description <> %s
+                        THEN CURRENT_TIMESTAMP
+                        ELSE products.updated_at
+                    END,
+                    last_checked_at = CURRENT_TIMESTAMP
+                WHERE page_url = %s
+                """,
+                (description ,features, rating, rating_count, price, price, rating, features, rating_count, description, page_url)
+            )
+
+        except Exception as e:
+            logging.error(f"Error inserting product {page_url}: {e}")
+            error_log.append({
+                "Page url": page_url,
+                "error": 'Inserting error'
+            })
+        conn.commit()
+        cursor.close()
+        conn.close()
     except Exception as e:
         logging.error(f"Error inserting data into the target database: {e}")
         raise e
@@ -79,7 +161,7 @@ def initial_scraping_process(task_queue, total_jobs, error_log):
         shop_id = category_path_data['shop_id']
         category_id = category_path_data['category_id']
         subcategory_id = category_path_data['subcategory_id']
-        category_path = category_path_data['url']
+        category_path = category_path_data['paths']
         
         try:
             logging.info(f"Navigating to: {category_path}")
@@ -117,7 +199,8 @@ def initial_scraping_process(task_queue, total_jobs, error_log):
                         # Extract price
                         price_tag = card.find('div', class_='main-price__value')
                         price = price_tag.text.strip() if price_tag else None
-                        price = price.replace('£', '')
+                        price = price.replace('£', '').replace(',','').replace('.','')
+                        price = float(price.replace('From\n\t\t\t\t\t\t', '').strip())  
         
                         # Store the product info in a dictionary
                         product_info = {
@@ -131,7 +214,7 @@ def initial_scraping_process(task_queue, total_jobs, error_log):
                             'category_id': category_id,
                             'subcategory_id': subcategory_id
                         }
-                        
+          
                         # Append the product info to the list
                         products_info.append(product_info)
         
@@ -165,13 +248,12 @@ def initial_scraping_process(task_queue, total_jobs, error_log):
             })  
         finally:
             task_queue.task_done()
-    
-    jobs_left = task_queue.qsize()
-    logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
+            jobs_left = task_queue.qsize()
+            logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
 
 
 def final_scraping_process(task_queue, total_jobs, error_log):
-    """Make initial scraping."""
+    """Make final scraping."""
     while not task_queue.empty():
         product_path_data = task_queue.get()
         product_path = product_path_data['page_url']
@@ -179,7 +261,7 @@ def final_scraping_process(task_queue, total_jobs, error_log):
         try:
             logging.info(f"Navigating to: {product_path}")
             response = requests.get(product_path)
-            response.raise_for_status()  # Raise exception for bad status codes
+            response.raise_for_status()
             soup = BeautifulSoup(response.content, 'html.parser')
 
             # Extract bullet point information (features & benefits)
@@ -193,27 +275,27 @@ def final_scraping_process(task_queue, total_jobs, error_log):
             description_tag = soup.find('div', class_='product-main-info__description')
             description = description_tag.text.strip() if description_tag else 'Description not found'
 
-            # Extract Cloudinary product identifiers
-            cloudinary_script = soup.find('script', src="https://product-gallery.cloudinary.com/all.js")
-            if cloudinary_script:
-                onload_attr = cloudinary_script.get('onload')
-                if onload_attr:
-                    # Use regex to extract the list of product identifiers
-                    identifiers_str = re.search(r'\[(.*?)\]', onload_attr).group(1)
-                    product_identifiers = [id.strip() for id in identifiers_str.split(',')]  # Convert to list
-            # Extract all images after gallery initialization
-            image_urls = []
-            # Try to directly access images from the Cloudinary gallery if possible
-            if product_identifiers:
-                for identifier in product_identifiers:
-                    image_url = f"https://res.cloudinary.com/dj6kabpgi/image/upload/{identifier}.jpg"
-                    image_urls.append(image_url)
-            else:
-                # Fallback: extract images from the page if product identifiers are not available
-                for img_tag in soup.select('.pdp__gallery img'):
-                    image_url = img_tag.get('src')
-                    if image_url:
-                        image_urls.append(image_url)
+            # # Extract Cloudinary product identifiers
+            # cloudinary_script = soup.find('script', src="https://product-gallery.cloudinary.com/all.js")
+            # if cloudinary_script:
+            #     onload_attr = cloudinary_script.get('onload')
+            #     if onload_attr:
+            #         # Use regex to extract the list of product identifiers
+            #         identifiers_str = re.search(r'\[(.*?)\]', onload_attr).group(1)
+            #         product_identifiers = [id.strip() for id in identifiers_str.split(',')]  # Convert to list
+            # # Extract all images after gallery initialization
+            # image_urls = []
+            # # Try to directly access images from the Cloudinary gallery if possible
+            # if product_identifiers:
+            #     for identifier in product_identifiers:
+            #         image_url = f"https://res.cloudinary.com/dj6kabpgi/image/upload/{identifier}.jpg"
+            #         image_urls.append(image_url)
+            # else:
+            #     # Fallback: extract images from the page if product identifiers are not available
+            #     for img_tag in soup.select('.pdp__gallery img'):
+            #         image_url = img_tag.get('src')
+            #         if image_url:
+            #             image_urls.append(image_url)
 
             # Find all script tags with type="application/ld+json"
             script_tags = soup.find_all('script', type='application/ld+json')
@@ -244,14 +326,15 @@ def final_scraping_process(task_queue, total_jobs, error_log):
 
             # Store the product info in a dictionary
             product_info = {
-                'media': image_urls,
+                # 'media': image_urls,
+                'description' : description,
                 'page_url': product_path,
                 'features': features_arr,
                 'rating': rating,
                 'rating_count': rating_count,
                 'price': price,
             }
-                        
+
             logging.info(f"Finished scraping {product_path}")
             if product_info:
                 final_insert_scraped_data(product_info, error_log)
@@ -277,9 +360,9 @@ def final_scraping_process(task_queue, total_jobs, error_log):
 
         finally:
             task_queue.task_done()
-    
-    jobs_left = task_queue.qsize()
-    logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
+            jobs_left = task_queue.qsize()
+            logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
+            time.sleep(2)
 
 def run_initial_wickes():
     error_log = []
@@ -295,8 +378,6 @@ def run_initial_wickes():
         logging.info(f'Total jobs to scrape: {total_jobs}')
 
         initial_scraping_process(task_queue, total_jobs, error_log)
-
-        return {"status": "success", "error_log": error_log}
 
     except Exception as e:
         logging.error(f"Error in run_initial_wickes: {str(e)}")
@@ -316,8 +397,6 @@ def run_final_wickes():
 
         final_scraping_process(task_queue, total_jobs, error_log)
 
-        return {"status": "success", "error_log": error_log}
-
     except Exception as e:
         logging.error(f"Error in run_final_wickes: {str(e)}")
         return {"status": "failed", "error": str(e)}
@@ -326,7 +405,10 @@ def run_wickes():
     """Main function to run the scraping process."""
     try:
         run_initial_wickes()
+        time.sleep(10)
         run_final_wickes()
+
+        return {"status": "success", "error_log": error_log}
     except Exception as e:
         logging.error(f"Error in run_wickes: {str(e)}")
         return {"status": "failed", "error": str(e)}

@@ -22,6 +22,7 @@ logging.basicConfig(
 
 from Tradepoint.tradepoint import run_tradepoint
 from Screwfix.screwfix import run_screwfix
+from Wickes.wickes import run_wickes 
 from email_utils import send_email
 from agolia_utils import insert_agolia
 from lambda_ec2_stop import stop_ec2
@@ -79,6 +80,32 @@ def start_screwfix():
     return screwfix_output
 
 
+def start_wickes():
+    try:
+        logging.info('Starting Wickes scraper...')
+        wickes_output = run_wickes()
+        if wickes_output['status'] == 'success':
+            if wickes_output['error_log']:
+                unsuccessfull_msg = ("Task Wickes", "Wickes Scraper has finished running with some errors. See the attached log file.", log_file)
+                send_email(*unsuccessfull_msg)
+                logging.warning('Wickes scraper finished with errors.')
+                return unsuccessfull_msg
+            else:
+                successfull_msg = ("Task Wickes", "Wickes Scraper has finished running successfully with no errors.")
+                send_email(*successfull_msg)
+                logging.info('Wickes scraper finished successfully.')
+                return successfull_msg
+        else:
+            failed_msg = ("Task Failed", f"An error occurred: {wickes_output['error']}", log_file)
+            send_email(*failed_msg)
+            logging.error('Wickes scraper failed: %s', wickes_output['error'])
+            return failed_msg
+    except Exception as e:
+        wickes_output = {"status": "failed", "error": str(e)}
+        send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
+        logging.error('An error occurred in Wickes scraper: %s', e)
+    return wickes_output
+
 def main():
     try:
         logging.info('Starting main function...')
@@ -88,17 +115,20 @@ def main():
         
         logging.info('Starting screwfix.py')
         screwfix_result = start_screwfix()
-        
+
+        logging.info('Starting wickes.py')
+        wickes_result = start_wickes()
+
         logging.info('Inserting new data to Agolia Search...')
         insert_agolia()
         
-        logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{tradepoint_result}\n{screwfix_result}')
+        logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{tradepoint_result}\n{screwfix_result}\n{wickes_result}')
         
         logging.info('Stopping EC2 instance...')
         stop_ec2()
         
         logging.info('Main function execution completed.')
-        
+
     except Exception as e:
         logging.error('An unexpected error occurred: %s', e)
         send_email("Task Failed", f"An unexpected error occurred: {str(e)}", log_file)
