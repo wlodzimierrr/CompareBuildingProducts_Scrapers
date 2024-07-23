@@ -20,11 +20,11 @@ def get_scraping_target_data():
         conn = conn_to_pathsdb()
         logging.info("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT shop_name, page_url FROM wickes")  
+        cursor.execute("SELECT shop_id, page_url FROM wickes")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()
-        return [{"shop_name": row[0], "page_url": row[1],} for row in data]
+        return [{"shop_id": row[0], "page_url": row[1],} for row in data]
     except Exception as e:
         logging.error(f"Error connecting to the database: {e}")
         raise e
@@ -36,7 +36,7 @@ def insert_scraped_data(product, error_log):
         logging.info("Storage database connection successful")
         cursor = conn.cursor()
 
-        name = product['name']
+        product_name = product['product_name']
         category = product['category']
         subcategory = product['subcategory']
         image_url = product['image_url']
@@ -47,34 +47,45 @@ def insert_scraped_data(product, error_log):
         rating_count = product['rating_count']
         price = product['price']
         brand = product['brand_name']
+        shop_id = product['shop_id']
         
         try:
             cursor.execute(
                 """
-                UPDATE products
-                SET
-                    product_description = %s,
-                    features = %s,
-                    rating = %s,
-                    rating_count = %s,
-                    price = %s,
-                    brand = %s,
+                INSERT INTO products
+                (product_name, category, subcategory, image_url, page_url, product_description, features, rating, rating_count, price, brand, shop_id, created_at, updated_at, last_checked_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON CONFLICT (page_url) DO UPDATE SET
+                    product_name = EXCLUDED.product_name,
+                    category = EXCLUDED.category,
+                    subcategory = EXCLUDED.subcategory,
+                    image_url = EXCLUDED.image_url,
+                    product_description = EXCLUDED.product_description,
+                    features = EXCLUDED.features,
+                    rating = EXCLUDED.rating,
+                    rating_count = EXCLUDED.rating_count,
+                    price = EXCLUDED.price,
+                    brand = EXCLUDED.brand,
+                    shop_id = EXCLUDED.shop_id,
                     updated_at = CASE
-                        WHEN products.price <> %s
-                            OR products.rating <> %s
-                            OR products.features <> %s
-                            OR products.rating_count <> %s
-                            OR products.product_description <> %s
-                            OR products.brand <> %s
+                        WHEN products.product_name <> EXCLUDED.product_name
+                            OR products.category <> EXCLUDED.category
+                            OR products.subcategory <> EXCLUDED.subcategory
+                            OR products.image_url <> EXCLUDED.image_url
+                            OR products.price <> EXCLUDED.price
+                            OR products.rating <> EXCLUDED.rating
+                            OR products.features <> EXCLUDED.features
+                            OR products.rating_count <> EXCLUDED.rating_count
+                            OR products.product_description <> EXCLUDED.product_description
+                            OR products.brand <> EXCLUDED.brand
+                            OR products.shop_id <> EXCLUDED.shop_id
                         THEN CURRENT_TIMESTAMP
                         ELSE products.updated_at
                     END,
                     last_checked_at = CURRENT_TIMESTAMP
-                WHERE page_url = %s
                 """,
-                (description ,features, rating, rating_count, price, brand, price, rating, features, rating_count, description, brand, page_url)
+                (product_name, category, subcategory, image_url, page_url, description, features, rating, rating_count, price, brand, shop_id)
             )
-
         except Exception as e:
             logging.error(f"Error inserting product {page_url}: {e}")
             error_log.append({
@@ -98,6 +109,7 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
     while not task_queue.empty():
         product_path_data = task_queue.get()
         product_path = product_path_data['page_url']
+        shop_id = product_path_data['shop_id']
         
         try:
             logging.info(f"Navigating to: {product_path}")
@@ -106,8 +118,8 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
             soup = BeautifulSoup(response.content, 'html.parser')
 
             # Extract product name
-            name_tag = soup.find('h1', class_='pdp__heading')
-            name = name_tag.get_text(strip=True) if name_tag else 'No heading found'
+            product_name_tag = soup.find('h1', class_='pdp__heading')
+            product_name = product_name_tag.get_text(strip=True) if product_name_tag else 'No heading found'
 
             # Extract category and subcategory
             breadcrumbs_tag = soup.find_all('li', class_='breadcrumbs__item')
@@ -123,8 +135,8 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
                     if span:
                         breadcrumb_links.append((span.get_text(strip=True), None))
 
-            category = breadcrumb_links[1][0]
-            subcategory = breadcrumb_links[2][0]
+            category = breadcrumb_links[2][0]
+            subcategory = breadcrumb_links[3][0]
 
             # Extract product image
             img_tag = soup.find('img')
@@ -193,7 +205,7 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
                 offers = product_data.get('offers', {})
                 price = offers.get('price')
                 brand = product_data['brand']
-                brand_name = brand if brand else None
+                brand_name = brand if brand else 'No brand provided'
 
             else:
                 logging.error("No script tag with JSON data found.")
@@ -221,7 +233,7 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
                             break
 
             product_info = {
-                'product_name': name,
+                'product_name': product_name,
                 'page_url': product_path,
                 'image_url': f"https:{img_src}",
                 # 'media': image_urls,
@@ -233,12 +245,13 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
                 'brand_name': brand_name,
                 'category': category,
                 'subcategory': subcategory,
+                'shop_id': shop_id,
             }
                 
 
             logging.info(f"Finished scraping {product_path}")
             if product_info:
-                final_insert_scraped_data(product_info, error_log)
+                insert_scraped_data(product_info, error_log)
             
         except requests.exceptions.RequestException as e:
             logging.error(f"Error fetching URL {product_path}: {e}")
@@ -270,7 +283,7 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
 def run_wickes():
     """Main function to run the scraping process."""
     try:
-        category_paths = get_scraping_final_target_data()
+        category_paths = get_scraping_target_data()
         task_queue = queue.Queue()
 
         for path in category_paths:

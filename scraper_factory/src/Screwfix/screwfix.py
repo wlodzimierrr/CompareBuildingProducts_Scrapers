@@ -21,12 +21,12 @@ def get_scraping_target_data():
         conn = conn_to_pathsdb()
         logging.info("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT shop_id, category_id, subcategory_id, paths FROM screwfix")  
+        cursor.execute("SELECT shop_id, category, subcategory, category_path FROM screwfix")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()
         
-        return [{"shop_id": row[0], "category_id": row[1], "subcategory_id": row[2], "paths": row[3]} for row in data]
+        return [{"shop_id": row[0], "category": row[1], "subcategory": row[2], "category_path": row[3]} for row in data]
     except Exception as e:
         logging.error(f"Error connecting to the database: {e}")
         raise e    
@@ -42,8 +42,8 @@ def insert_scraped_data(data):
         
         for product in products:
             shop_id = data['shop_id']
-            category_id = data['category_id']
-            subcategory_id = data['subcategory_id']
+            category = data['category']
+            subcategory = data['subcategory']
             product_name = product['longDescription']
             page_url = f'https://www.screwfix.com{product["detailPageUrl"]}'
             features = product['bullets']
@@ -57,14 +57,14 @@ def insert_scraped_data(data):
                 cursor.execute(
                     """
                     INSERT INTO products (
-                        shop_id, category_id, subcategory_id, product_name, page_url, features, image_url, rating, rating_count, price, brand, created_at, updated_at, last_checked_at
+                        shop_id, category, subcategory, product_name, page_url, features, image_url, rating, rating_count, price, brand, created_at, updated_at, last_checked_at
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                     ON CONFLICT (page_url) DO UPDATE SET
                         shop_id = EXCLUDED.shop_id,
-                        category_id = EXCLUDED.category_id,
-                        subcategory_id = EXCLUDED.subcategory_id,
+                        category = EXCLUDED.category,
+                        subcategory = EXCLUDED.subcategory,
                         product_name = EXCLUDED.product_name,
                         features = EXCLUDED.features,
                         image_url = EXCLUDED.image_url,
@@ -79,15 +79,15 @@ def insert_scraped_data(data):
                                 OR products.image_url <> EXCLUDED.image_url
                                 OR products.rating <> EXCLUDED.rating
                                 OR products.rating_count <> EXCLUDED.rating_count
-                                OR products.category_id <> EXCLUDED.category_id
-                                OR products.subcategory_id <> EXCLUDED.subcategory_id
+                                OR products.category <> EXCLUDED.category
+                                OR products.subcategory <> EXCLUDED.subcategory
                                 OR products.brand <> EXCLUDED.brand
                             THEN CURRENT_TIMESTAMP
                             ELSE products.updated_at
                         END,
                         last_checked_at = CURRENT_TIMESTAMP;
                     """,
-                    (shop_id, category_id, subcategory_id, product_name, page_url, features, image_url, rating, rating_count, price, brand)
+                    (shop_id, category, subcategory, product_name, page_url, features, image_url, rating, rating_count, price, brand)
                 )
             except Exception as e:
                 logging.error(f"Error inserting product {product_name}: {e}")
@@ -240,9 +240,9 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
     while not task_queue.empty():
         category_path_data = task_queue.get()
         shop_id = category_path_data['shop_id']
-        category_id = category_path_data['category_id']
-        subcategory_id = category_path_data['subcategory_id']
-        category_path = category_path_data['paths']
+        category = category_path_data['category']
+        subcategory = category_path_data['subcategory']
+        category_path = category_path_data['category_path']
         
         logging.info('Making initial request...')
         try:
@@ -287,8 +287,8 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
                 total_products_scraped += products_count
                 data_to_insert = {
                     'shop_id': shop_id,
-                    'category_id': category_id,
-                    'subcategory_id': subcategory_id,
+                    'category': category,
+                    'subcategory': subcategory,
                     'enrichedData': enriched_data
                 }
                 insert_scraped_data(data_to_insert)
