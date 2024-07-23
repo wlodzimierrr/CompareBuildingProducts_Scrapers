@@ -6,12 +6,18 @@ import json
 import logging
 from datetime import datetime
 from tqdm import tqdm
+import sys
+import os
+
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from header import headers
+from db_utils import conn_to_pathsdb
 
 # Define the input and output CSV file paths
-input_csv = '/home/wlodzimierrr/Desktop/code/paths_data_scrapers/tradepoint/data/all_tradepoint_category_codes.csv'
-output_csv = f'/home/wlodzimierrr/Desktop/code/paths_data_scrapers/tradepoint/data/sorted_tradepoint_codes_{datetime.now().strftime("%d-%m-%y")}.csv'
+input_csv = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../tradepoint/data/all_tradepoint_category_codes.csv'))
+# output_csv = f'/home/wlodzimierrr/Desktop/code/paths_data_scrapers/tradepoint/data/sorted_tradepoint_codes_{datetime.now().strftime("%d-%m-%y")}.csv'
 
 def initial_request(category_code):
     """Make initial API request."""
@@ -53,13 +59,9 @@ def get_total_page_count(response):
         logging.warning("Failed to fetch data or no response")
     return 0, False, None
 
-def process_category_codes():
+def process_category_codes_tradepoint():
     """Process category codes from input CSV and save relevant data to output CSV."""
     try:
-        with open(output_csv, mode='a', newline='') as file:
-                            writer = csv.writer(file)
-                            writer.writerow(['page_url', 'category', 'subcategory', 'category_code', 'shop_id'])
-                            
         with open(input_csv, 'r', newline='', encoding='utf-8') as csvfile: 
             reader = csv.reader(csvfile)
             total_rows = sum(1 for _ in csvfile)
@@ -79,10 +81,13 @@ def process_category_codes():
                         shop_id = 2
                         logging.info(f"Page URL: {page_url}")
                         if count > 1:         
-                            with open(output_csv, mode='a', newline='') as file:
-                                writer = csv.writer(file)
-                                writer.writerow([page_url, category, subcategory, category_code, shop_id])
-                                logging.info(f"Saved category code: {category_code}")
+                            conn = conn_to_pathsdb()
+                            cur = conn.cursor()
+                            cur.execute("INSERT INTO tradepoint (page_url, category, subcategory, category_code, shop_id, created_at) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)", (page_url, category, subcategory, category_code, shop_id))
+                            conn.commit()
+                            cur.close()
+                            conn.close()
+                            logging.info(f"Inserted data into database: {page_url}")
                     except KeyError as e:
                         logging.error(f"Missing key in data: {e}")
                     except IndexError as e:
@@ -95,4 +100,4 @@ def process_category_codes():
         logging.error(f"An unexpected error occurred: {e}")
 
 if __name__ == "__main__":
-    process_category_codes()
+    process_category_codes_tradepoint()

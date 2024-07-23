@@ -5,7 +5,7 @@ from sitemap_parser import sitemap_parser
 from sort_urls import sort_urls
 from sorted_category_data import process_category_codes
 
-def main():
+def main_screwfix():
     logging.basicConfig(
         level=logging.ERROR,
         format='%(asctime)s - %(module)s - %(levelname)s - %(message)s',
@@ -32,4 +32,4 @@ def main():
         logging.error(f"An error occurred in the main script: {e}")
 
 if __name__ == "__main__":
-    main()
+    main_screwfix()

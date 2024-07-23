@@ -6,7 +6,7 @@ from check_product_page import network_log_collector
 from har_parser import har_parser
 from sorted_valid_codes import process_category_codes
 
-def main():
+def main_tradepoint():
     # Set up logging to file and console, for errors
     logging.basicConfig(
         level=logging.ERROR,
@@ -36,4 +36,4 @@ def main():
         print(f"An error occurred. Check script_log.log for details.")
 
 if __name__ == "__main__":
-    main()
+    main_tradepoint()

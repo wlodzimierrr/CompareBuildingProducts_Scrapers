@@ -25,7 +25,7 @@ def sitemap_parser():
         urls = [url.text.strip().replace('"', '') for url in root.findall('.//ns:loc', namespace)]
 
         # Save cleaned URLs to a CSV file
-        csv_file = '/home/wlodzimierrr/Desktop/code/paths_data_scrapers/screwfix/data/sitemap_urls.csv'
+        csv_file = 'paths_data_scrapers/screwfix/data/sitemap_urls.csv'
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
             for url in urls:

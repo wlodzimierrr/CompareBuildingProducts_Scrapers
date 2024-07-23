@@ -5,8 +5,8 @@ import logging
 from tqdm import tqdm
 
 # Path to your HAR file
-har_file_path = "/home/wlodzimierrr/Desktop/code/paths_data_scrapers/tradepoint/data/network_logs_all.har"
-csv_file = '/home/wlodzimierrr/Desktop/code/paths_data_scrapers/tradepoint/data/all_tradepoint_category_codes.csv'
+har_file_path = "paths_data_scrapers/tradepoint/data/network_logs_all.har"
+csv_file = 'paths_data_scrapers/tradepoint/data/all_tradepoint_category_codes.csv'
 
 def har_parser():
     logging.info("Starting the HAR parser")

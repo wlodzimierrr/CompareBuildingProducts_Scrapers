@@ -4,8 +4,8 @@ import csv
 import logging
 from tqdm import tqdm
 
-csv_input = '/home/wlodzimierrr/Desktop/code/paths_data_scrapers/screwfix/data/sitemap_urls.csv'
-csv_output = '/home/wlodzimierrr/Desktop/code/paths_data_scrapers/screwfix/data/category_paths.csv'
+csv_input = 'paths_data_scrapers/screwfix/data/sitemap_urls.csv'
+csv_output = 'paths_data_scrapers/screwfix/data/category_paths.csv'
 
 def filter_and_clean_urls(urls):
     base_url = "https://www.screwfix.com"

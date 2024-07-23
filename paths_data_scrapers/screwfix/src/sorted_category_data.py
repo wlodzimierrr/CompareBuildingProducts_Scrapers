@@ -7,10 +7,17 @@ import logging
 from datetime import datetime
 import re
 from tqdm import tqdm
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from cookies_headers import cookies, headers
-input_csv = '/home/wlodzimierrr/Desktop/code/paths_data_scrapers/screwfix/data/category_paths.csv'
-output_csv = f'/home/wlodzimierrr/Desktop/code/paths_data_scrapers/screwfix/data/sorted_screwfix_paths_{datetime.now().strftime("%d-%m-%y")}.csv'
+from db_utils import conn_to_pathsdb 
+
+input_csv = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../screwfix/data/category_paths.csv'))
+
+# output_csv = f'/home/wlodzimierrr/Desktop/code/paths_data_scrapers/screwfix/data/sorted_screwfix_paths_{datetime.now().strftime("%d-%m-%y")}.csv'
 
 
 def get_category_and_subcategory_from_url(url):
@@ -72,12 +79,8 @@ def get_total_page_count(response):
         return 0, False
 
 def process_category_codes():
-    """Process category codes from input CSV and save relevant data to output CSV."""
-    try:
-        with open(output_csv, mode='a', newline='') as file:
-                            writer = csv.writer(file)
-                            writer.writerow(['page_url', 'category', 'subcategory', 'category_path', 'shop_id'])
-                            
+    """Process category codes from input CSV and save relevant data to database."""
+    try:                    
         with open(input_csv, 'r', newline='', encoding='utf-8') as csvfile: 
             reader = csv.reader(csvfile)
             paths = list(reader)
@@ -92,9 +95,12 @@ def process_category_codes():
                         shop_id = 3
                         logging.info(f"Page URL: {page_url}")
                         if count > 1:         
-                            with open(output_csv, mode='a', newline='') as file:
-                                writer = csv.writer(file)
-                                writer.writerow([page_url, category, subcategory, category_path, shop_id])
+                                conn = conn_to_pathsdb()
+                                cur = conn.cursor()
+                                cur.execute("INSERT INTO screwfix (page_url, category, subcategory, category_path, shop_id, created_at) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)", (page_url, category, subcategory, category_path, shop_id))
+                                conn.commit()
+                                cur.close()
+                                conn.close()
                                 logging.info(f"Saved category code: {category_path}")
                     except KeyError as e:
                         logging.error(f"Missing key in data: {e}")

@@ -43,7 +43,7 @@ def network_log_collector():
         network_logs = []
 
         # Read URLs from CSV file
-        with open('/home/wlodzimierrr/Desktop/code/paths_data_scrapers/tradepoint/data/sitemap_urls.csv', 'r', newline='', encoding='utf-8') as csvfile:
+        with open('paths_data_scrapers/tradepoint/data/sitemap_urls.csv', 'r', newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
             urls = [row[0] for row in reader]
 
@@ -87,7 +87,7 @@ def network_log_collector():
             network_logs.append(har_entry)
 
         # Write the list of HAR entries to a file
-        with open("/home/wlodzimierrr/Desktop/code/paths_data_scrapers/tradepoint/data/network_logs_all.har", "w", encoding="utf-8") as f:
+        with open("paths_data_scrapers/tradepoint/data/network_logs_all.har", "w", encoding="utf-8") as f:
             json.dump(network_logs, f, ensure_ascii=False)
         logging.info("Network logs saved successfully")
 

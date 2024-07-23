@@ -5,7 +5,7 @@ import logging
 
 # URL of the XML sitemap
 sitemap_url = 'https://www.trade-point.co.uk/static/sitemap.xml'
-csv_file = '/home/wlodzimierrr/Desktop/code/paths_data_scrapers/tradepoint/data/sitemap_urls.csv'
+csv_file = 'paths_data_scrapers/tradepoint/data/sitemap_urls.csv'
 
 
 def sitemap_parser():

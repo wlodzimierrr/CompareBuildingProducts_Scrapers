@@ -5,8 +5,7 @@ import logging
 
 # URL of the XML sitemap
 sitemap_url = 'https://www.wickes.co.uk/sitemap.xml'
-csv_file = '/home/wlodzimierrr/Desktop/code/paths_data_scrapers/wickes/data/sitemap_urls.csv'
-
+csv_file = 'paths_data_scrapers/wickes/data/sitemap_urls.csv'
 
 def sitemap_parser():
     try:
@@ -29,7 +28,7 @@ def sitemap_parser():
         # Save cleaned URLs to a CSV file
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['url'])
+            writer.writerow(['page_url'])
             for url in urls:
                 writer.writerow([url])
         logging.info(f"Saved {len(urls)} cleaned URLs to {csv_file}")
