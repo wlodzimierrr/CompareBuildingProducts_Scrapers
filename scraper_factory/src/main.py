@@ -7,8 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 main_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(main_dir)
 
-log_dir = '/home/ec2-user/logs'
-# log_dir = '/home/wlodzimierrr/Desktop'
+log_dir = os.path.join(main_dir, 'logs')
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, f'scraper_{datetime.now().strftime("%d-%m-%y")}.log')
 
@@ -17,10 +16,15 @@ logging.basicConfig(
     datefmt='%d-%m-%y %H:%M:%S',
     level=logging.INFO,
     handlers=[
-        logging.StreamHandler(sys.stdout),
         logging.FileHandler(log_file, mode='w')
     ]
 )
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.ERROR)
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
+
+logging.getLogger().addHandler(console_handler)
 
 from Tradepoint.tradepoint import run_tradepoint
 from Screwfix.screwfix import run_screwfix

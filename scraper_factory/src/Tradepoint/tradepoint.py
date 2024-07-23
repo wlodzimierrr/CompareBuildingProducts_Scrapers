@@ -6,6 +6,7 @@ import queue
 import os
 import sys
 import logging
+from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from .cookies_headers import headers
@@ -51,6 +52,7 @@ def insert_scraped_data(data):
             rating = 0.0
             price = 0.0
             rating_count = 0
+            brand = attributes["technicalSpecifications"][0]['value']
             
             if 'pricing' in attributes:
                 price_info = attributes['pricing']
@@ -69,9 +71,9 @@ def insert_scraped_data(data):
                 cursor.execute(
                     """
                     INSERT INTO products (
-                        shop_id, category_id, subcategory_id, product_name, page_url, product_description, features, image_url, rating, rating_count, price, created_at, updated_at, last_checked_at
+                        shop_id, category_id, subcategory_id, product_name, page_url, product_description, features, image_url, rating, rating_count, price, brand, created_at, updated_at, last_checked_at
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                     ON CONFLICT (page_url) DO UPDATE SET
                         shop_id = EXCLUDED.shop_id,
@@ -84,6 +86,7 @@ def insert_scraped_data(data):
                         rating = EXCLUDED.rating,
                         rating_count = EXCLUDED.rating_count,
                         price = EXCLUDED.price,
+                        brand = EXCLUDED.brand,
                         updated_at = CASE
                             WHEN products.price <> EXCLUDED.price
                                 OR products.product_name <> EXCLUDED.product_name
@@ -94,12 +97,13 @@ def insert_scraped_data(data):
                                 OR products.rating_count <> EXCLUDED.rating_count
                                 OR products.category_id <> EXCLUDED.category_id
                                 OR products.subcategory_id <> EXCLUDED.subcategory_id
+                                OR products.brand <> EXCLUDED.brand
                             THEN CURRENT_TIMESTAMP
                             ELSE products.updated_at
                         END,
                         last_checked_at = CURRENT_TIMESTAMP;
                     """,
-                    (shop_id, category_id, subcategory_id, product_name, page_url, product_description, features, image_url, rating, rating_count, price)
+                    (shop_id, category_id, subcategory_id, product_name, page_url, product_description, features, image_url, rating, rating_count, price, brand)
                 )
             except Exception as e:
                 logging.error(f"Error inserting product {product_name}: {e}")
@@ -230,7 +234,7 @@ def final_request(category_code, total_results):
             continue
     return all_responses
 
-def scraping_process(task_queue, total_jobs, error_log):
+def scraping_process(task_queue, total_jobs, error_log, progress_bar):
     """Main scraping process."""
     while not task_queue.empty():
         category_path_data = task_queue.get()
@@ -250,6 +254,7 @@ def scraping_process(task_queue, total_jobs, error_log):
                 "error": str(e)
             })
             task_queue.task_done()
+            progress_bar.update(1)
             continue
             
         logging.info('Extracting item count...')
@@ -263,6 +268,7 @@ def scraping_process(task_queue, total_jobs, error_log):
                 "error": success_or_error
             })
             task_queue.task_done()
+            progress_bar.update(1)
             continue
             
         logging.info(f'Total item count for category: {total_results}')
@@ -297,6 +303,7 @@ def scraping_process(task_queue, total_jobs, error_log):
             })
             
         task_queue.task_done()
+        progress_bar.update(1)
         jobs_left = task_queue.qsize()
         logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
 
@@ -311,8 +318,8 @@ def run_tradepoint():
         
         total_jobs = task_queue.qsize()
         logging.info(f'Total jobs to scrape: {total_jobs}')
-            
-        scraping_process(task_queue, total_jobs, error_log)
+        with tqdm(total=total_jobs, desc="Tradepoint scraping progress") as progress_bar:
+            scraping_process(task_queue, total_jobs, error_log, progress_bar)
 
         return {"status": "success", "error_log": error_log}
     except Exception as e:
