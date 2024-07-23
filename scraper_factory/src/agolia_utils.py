@@ -1,6 +1,5 @@
 from algoliasearch.search_client import SearchClient
 import logging
-
 from config import agolia_app_id, agolia_password
 from db_utils import conn_to_storagedb
 

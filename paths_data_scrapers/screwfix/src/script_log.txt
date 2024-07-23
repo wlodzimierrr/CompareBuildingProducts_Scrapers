@@ -1,0 +1,68 @@
+2024-07-22 21:15:31,167 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/tools/cat830034?page_size=1&page_start=0
+2024-07-22 21:15:31,167 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 21:23:31,666 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/tools/cat830034?page_size=1&page_start=0
+2024-07-22 21:23:31,667 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 21:31:12,622 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 21:31:23,064 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 21:32:09,780 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 21:32:21,390 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/heating-plumbing/cat830950?page_size=1&page_start=0
+2024-07-22 21:32:21,391 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 21:32:29,150 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/landingpage/heating-plumbing-deals/?page_size=1&page_start=0
+2024-07-22 21:32:29,151 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 21:33:43,669 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 21:39:51,274 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/electrical-lighting/cat840780?page_size=1&page_start=0
+2024-07-22 21:39:51,275 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 21:39:57,105 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/landingpage/electrical-lighting-deals/?page_size=1&page_start=0
+2024-07-22 21:39:57,106 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 21:46:23,285 - sorted_category_data - ERROR - Connection error occurred: HTTPSConnectionPool(host='www.screwfix.com', port=443): Max retries exceeded with url: /prod/ffx-browse-bff/v1/SFXUK/data//c/electrical-lighting/electric-vehicle-charging/cat12700003?page_size=1&page_start=0 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7f1ee659fbc0>: Failed to resolve 'www.screwfix.com' ([Errno -2] Name or service not known)"))
+2024-07-22 21:46:23,285 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 21:46:40,496 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 21:49:10,049 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/bathrooms-kitchens/cat810412?page_size=1&page_start=0
+2024-07-22 21:49:10,050 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 21:53:06,149 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 21:55:13,572 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/outdoor-gardening/cat840458?page_size=1&page_start=0
+2024-07-22 21:55:13,573 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 21:59:21,201 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:01:21,508 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/screws-nails-fixings/cat840002?page_size=1&page_start=0
+2024-07-22 22:01:21,509 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 22:07:14,268 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:07:20,609 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/security-ironmongery/cat4190012?page_size=1&page_start=0
+2024-07-22 22:07:20,610 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 22:14:04,664 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/building-doors/cat850188?page_size=1&page_start=0
+2024-07-22 22:14:04,665 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 22:14:47,833 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:14:54,719 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:17:15,326 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:18:21,860 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/safety-workwear/cat850322?page_size=1&page_start=0
+2024-07-22 22:18:21,861 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 22:18:32,110 - sorted_category_data - ERROR - An error occurred while processing data: cannot unpack non-iterable NoneType object
+2024-07-22 22:24:11,462 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:24:31,698 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:24:37,967 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:24:47,674 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:24:55,907 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/sealants-adhesives/cat850030?page_size=1&page_start=0
+2024-07-22 22:24:55,908 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 22:25:10,168 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:25:20,219 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:25:37,166 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:25:46,125 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:25:55,741 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:28:15,563 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:30:38,178 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/storage-ladders/cat831422?page_size=1&page_start=0
+2024-07-22 22:30:38,179 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 22:32:40,534 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/auto-cleaning/cat7360001?page_size=1&page_start=0
+2024-07-22 22:32:40,535 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 22:36:58,554 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:37:07,428 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:38:04,209 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:38:18,863 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:39:50,824 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/c/decorating/cat850130?page_size=1&page_start=0
+2024-07-22 22:39:50,825 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 22:40:00,056 - sorted_category_data - ERROR - HTTP error occurred: 403 Client Error: Forbidden for url: https://www.screwfix.com/prod/ffx-browse-bff/v1/SFXUK/data/landingpage/paint-decorating-deals/?page_size=1&page_start=0
+2024-07-22 22:40:00,057 - sorted_category_data - ERROR - Failed to fetch data or no products found
+2024-07-22 22:40:19,670 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:40:27,733 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:43:38,112 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:44:06,306 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:44:13,639 - sorted_category_data - ERROR - Expected data not found in response
+2024-07-22 22:44:49,549 - sorted_category_data - ERROR - Expected data not found in response

@@ -5,6 +5,7 @@ import os
 import sys
 import logging
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -13,108 +14,39 @@ from db_utils import conn_to_pathsdb, conn_to_storagedb
 
 error_log = []
 
-def get_scraping_initial_target_data():
+def get_scraping_target_data():
     """Retrieve scraping target data from paths database."""
     try:
         conn = conn_to_pathsdb()
         logging.info("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT shop_id, category_id, subcategory_id, paths FROM wickes")  
+        cursor.execute("SELECT shop_name, page_url FROM wickes")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()
-        return [{"shop_id": row[0], "category_id": row[1], "subcategory_id": row[2], "paths": row[3]} for row in data]
+        return [{"shop_name": row[0], "page_url": row[1],} for row in data]
     except Exception as e:
         logging.error(f"Error connecting to the database: {e}")
         raise e
 
-
-def get_scraping_final_target_data():
-    """Retrieve scraping target data from paths database."""
-    try:
-        conn = conn_to_storagedb()
-        logging.info("Products database connection successful")
-        cursor = conn.cursor()
-        cursor.execute("SELECT page_url FROM products WHERE shop_id = '4' ")  
-        data = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return [{"page_url": row[0]} for row in data]
-    except Exception as e:
-        logging.error(f"Error connecting to the database: {e}")
-        raise e
-    
-def initial_insert_scraped_data(products, error_log):
-    """Insert initial scraped data into the storage database."""
+def insert_scraped_data(product, error_log):
+    """Insert scraped data into the storage database."""
     try:
         conn = conn_to_storagedb()
         logging.info("Storage database connection successful")
         cursor = conn.cursor()
-        
-        for product in products:
-            shop_id = product['shop_id']
-            category_id = product['category_id']
-            product_name = product['product_name']
-            page_url = product['page_url']
-            image_url = product['image_url']
-            subcategory_id = product['subcategory_id']
-            price = product['price']
-    
-            try:
-                cursor.execute(
-                    """
-                    INSERT INTO products (
-                        shop_id, category_id, subcategory_id, product_name, page_url, image_url, price, created_at, updated_at, last_checked_at
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-                    )
-                    ON CONFLICT (page_url) DO UPDATE SET
-                        shop_id = EXCLUDED.shop_id,
-                        category_id = EXCLUDED.category_id,
-                        subcategory_id = EXCLUDED.subcategory_id,
-                        product_name = EXCLUDED.product_name,
-                        image_url = EXCLUDED.image_url,
-                        price = EXCLUDED.price,
-                        updated_at = CASE
-                            WHEN products.price <> EXCLUDED.price
-                                OR products.product_name <> EXCLUDED.product_name
-                                OR products.image_url <> EXCLUDED.image_url
-                                OR products.category_id <> EXCLUDED.category_id
-                                OR products.subcategory_id <> EXCLUDED.subcategory_id
-                            THEN CURRENT_TIMESTAMP
-                            ELSE products.updated_at
-                        END,
-                        last_checked_at = CURRENT_TIMESTAMP;
-                    """,
-                    (shop_id, category_id, subcategory_id, product_name, page_url, image_url, price)
-                )
-            except Exception as e:
-                logging.error(f"Error inserting product {product_name}: {e}")
-                error_log.append({
-                    "Product name": product_name,
-                    "Page url": page_url,
-                    "error": 'Inserting error'
-                })
-        conn.commit()
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        logging.error(f"Error inserting data into the target database: {e}")
-        raise e
 
-def final_insert_scraped_data(product, error_log):
-    """Insert final scraped data into the storage database."""
-    try:
-        conn = conn_to_storagedb()
-        logging.info("Storage database connection successful")
-        cursor = conn.cursor()
-    
+        name = product['name']
+        category = product['category']
+        subcategory = product['subcategory']
+        image_url = product['image_url']
         page_url = product['page_url']
         description = product['description']
         features = product.get('features', '')
         rating = product['rating']
         rating_count = product['rating_count']
         price = product['price']
+        brand = product['brand_name']
         
         try:
             cursor.execute(
@@ -126,19 +58,21 @@ def final_insert_scraped_data(product, error_log):
                     rating = %s,
                     rating_count = %s,
                     price = %s,
+                    brand = %s,
                     updated_at = CASE
                         WHEN products.price <> %s
                             OR products.rating <> %s
                             OR products.features <> %s
                             OR products.rating_count <> %s
                             OR products.product_description <> %s
+                            OR products.brand <> %s
                         THEN CURRENT_TIMESTAMP
                         ELSE products.updated_at
                     END,
                     last_checked_at = CURRENT_TIMESTAMP
                 WHERE page_url = %s
                 """,
-                (description ,features, rating, rating_count, price, price, rating, features, rating_count, description, page_url)
+                (description ,features, rating, rating_count, price, brand, price, rating, features, rating_count, description, brand, page_url)
             )
 
         except Exception as e:
@@ -154,106 +88,13 @@ def final_insert_scraped_data(product, error_log):
         logging.error(f"Error inserting data into the target database: {e}")
         raise e
 
-def initial_scraping_process(task_queue, total_jobs, error_log):
-    """Make initial scraping."""
-    while not task_queue.empty():
-        category_path_data = task_queue.get()
-        shop_id = category_path_data['shop_id']
-        category_id = category_path_data['category_id']
-        subcategory_id = category_path_data['subcategory_id']
-        category_path = category_path_data['paths']
-        
-        try:
-            logging.info(f"Navigating to: {category_path}")
-            page_number = 0
-            products_info = []  # List to collect products
-            
-            while True:
-                logging.info(f"Requesting page {page_number + 1}")
-                response = requests.get(f"https://www.wickes.co.uk{category_path}?q=%3Arelevance&page={page_number}&perPage=120")
-                response.raise_for_status()
-                soup = BeautifulSoup(response.content, 'html.parser')
-        
-                product_cards = soup.find_all('div', class_='card product-card')
-        
-                # Iterate through each product card
-                for card in product_cards:
-                    try:
-                        # Extract title and href
-                        title_tag = card.find('a', class_='product-card__title')
-                        title = title_tag.get('title')
-                        href = title_tag.get('href')
-        
-                        # Extract image source
-                        img_tag = card.find('img', class_='card__img-v2')
-                        img_src = img_tag.get('src')
-        
-                        # Extract rating
-                        rating_overlay = card.find('div', class_='rating-overlay')
-                        rating = rating_overlay.get('data-rating')
-        
-                        # Extract rating count
-                        rating_count_tag = card.find('div', class_='product-card__reviews')
-                        rating_count = rating_count_tag.text.strip().strip('()')
 
-                        # Extract price
-                        price_tag = card.find('div', class_='main-price__value')
-                        price = price_tag.text.strip() if price_tag else None
-                        price = price.replace('£', '').replace(',','').replace('.','')
-                        price = float(price.replace('From\n\t\t\t\t\t\t', '').strip())  
-        
-                        # Store the product info in a dictionary
-                        product_info = {
-                            'product_name': title,
-                            'page_url': f"https://www.wickes.co.uk{href}",
-                            'image_url': f"https:{img_src}",
-                            'rating': rating,
-                            'rating_count': rating_count,
-                            'price': price,
-                            'shop_id': shop_id,
-                            'category_id': category_id,
-                            'subcategory_id': subcategory_id
-                        }
-          
-                        # Append the product info to the list
-                        products_info.append(product_info)
-        
-                    except AttributeError as e:
-                        logging.error(f"Error extracting product info: {e}")
-        
-                # Check if we need to navigate to the next page or URL
-                if len(product_cards) < 120:
-                    break  # Less than 120 products means we've reached the end of this URL's results
-        
-                page_number += 1  # Move to the next page
-            
-            # After all pages are scraped, insert collected products into the database
-            logging.info(f"Total products collected: {len(products_info)}")
-            if products_info:
-                initial_insert_scraped_data(products_info, error_log)
-            
-            logging.info(f"Finished scraping {category_path}")
-        
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Request failed for {category_path}: {e}")
-            error_log.append({
-                "Category_code": str(category_path),
-                "error": str(e)
-            })  
-        except Exception as e:
-            logging.error(f"An error occurred while scraping {category_path}: {e}")
-            error_log.append({
-                "Category_code": str(category_path),
-                "error": str(e)
-            })  
-        finally:
-            task_queue.task_done()
-            jobs_left = task_queue.qsize()
-            logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
+import logging
+from bs4 import BeautifulSoup
+import requests
 
-
-def final_scraping_process(task_queue, total_jobs, error_log):
-    """Make final scraping."""
+def scraping_process(task_queue, total_jobs, error_log, progress_bar):
+    """Main scraping process."""
     while not task_queue.empty():
         product_path_data = task_queue.get()
         product_path = product_path_data['page_url']
@@ -263,6 +104,31 @@ def final_scraping_process(task_queue, total_jobs, error_log):
             response = requests.get(product_path)
             response.raise_for_status()
             soup = BeautifulSoup(response.content, 'html.parser')
+
+            # Extract product name
+            name_tag = soup.find('h1', class_='pdp__heading')
+            name = name_tag.get_text(strip=True) if name_tag else 'No heading found'
+
+            # Extract category and subcategory
+            breadcrumbs_tag = soup.find_all('li', class_='breadcrumbs__item')
+                
+            breadcrumb_links = []
+                
+            for breadcrumb in breadcrumbs_tag:
+                link = breadcrumb.find('a', class_='breadcrumbs__link')
+                if link:
+                    breadcrumb_links.append((link.get_text(strip=True), link['href']))
+                else:
+                    span = breadcrumb.find('span')
+                    if span:
+                        breadcrumb_links.append((span.get_text(strip=True), None))
+
+            category = breadcrumb_links[1][0]
+            subcategory = breadcrumb_links[2][0]
+
+            # Extract product image
+            img_tag = soup.find('img')
+            img_src = img_tag['src'] if img_tag else 'No image found'
 
             # Extract bullet point information (features & benefits)
             features_tag = soup.find('div', class_='info__features')
@@ -275,6 +141,10 @@ def final_scraping_process(task_queue, total_jobs, error_log):
             description_tag = soup.find('div', class_='product-main-info__description')
             description = description_tag.text.strip() if description_tag else 'Description not found'
 
+            # Extract the brand name
+            brand_name_tag = soup.find('strong', string='Brand Name:')
+            brand_name = brand_name_tag.find_next('span').text.strip() if brand_name_tag else 'Brand Name not found'
+            
             # # Extract Cloudinary product identifiers
             # cloudinary_script = soup.find('script', src="https://product-gallery.cloudinary.com/all.js")
             # if cloudinary_script:
@@ -317,23 +187,54 @@ def final_scraping_process(task_queue, total_jobs, error_log):
             if product_data:
                 aggregate_rating = product_data.get('aggregateRating', {})
                 rating_count = aggregate_rating.get('reviewCount') or aggregate_rating.get('reviewcount')
+                rating_count = rating_count if rating_count else 0
                 rating = aggregate_rating.get('ratingValue')
-
+                rating = rating if rating else 0.0
                 offers = product_data.get('offers', {})
                 price = offers.get('price')
+                brand = product_data['brand']
+                brand_name = brand if brand else None
+
             else:
                 logging.error("No script tag with JSON data found.")
 
-            # Store the product info in a dictionary
+            if price is None:
+                price_tag = soup.find('div', class_='main-price__value pdp-price__new-price')
+                price = price_tag.get_text(strip=True).replace('£', '') if price_tag else 'No price found'          
+
+            if brand_name is None:
+                # Find the product details section
+                product_details = soup.find('div', id='product-details')
+
+                # Initialize brand_name to 'N/A'
+                brand_name = 'N/A'
+
+                if product_details:
+                    # Find all <li> elements in the product details section
+                    list_items = product_details.find_all('li')
+
+                    # Iterate over list items to find the one that starts with 'Brand Name:'
+                    for item in list_items:
+                        if 'Brand Name:' in item.get_text():
+                            # Extract and clean the brand name
+                            brand_name = item.get_text().replace('Brand Name:', '').strip()
+                            break
+
             product_info = {
+                'product_name': name,
+                'page_url': product_path,
+                'image_url': f"https:{img_src}",
                 # 'media': image_urls,
                 'description' : description,
-                'page_url': product_path,
                 'features': features_arr,
                 'rating': rating,
                 'rating_count': rating_count,
                 'price': price,
+                'brand_name': brand_name,
+                'category': category,
+                'subcategory': subcategory,
             }
+                
 
             logging.info(f"Finished scraping {product_path}")
             if product_info:
@@ -344,7 +245,7 @@ def final_scraping_process(task_queue, total_jobs, error_log):
             error_log.append({
                 "Product_path": str(product_path),
                 "error": str(e)
-            })  
+            })
         except json.JSONDecodeError as e:
             logging.error(f"Error parsing JSON from {product_path}: {e}")
             error_log.append({
@@ -360,31 +261,14 @@ def final_scraping_process(task_queue, total_jobs, error_log):
 
         finally:
             task_queue.task_done()
+            progress_bar.update(1)
             jobs_left = task_queue.qsize()
             logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
             time.sleep(2)
 
-def run_initial_wickes():
-    error_log = []
-    try:
-        category_paths = get_scraping_initial_target_data()
-  
-        task_queue = queue.Queue()
-
-        for path in category_paths:
-            task_queue.put(path)
-
-        total_jobs = task_queue.qsize()
-        logging.info(f'Total jobs to scrape: {total_jobs}')
-
-        initial_scraping_process(task_queue, total_jobs, error_log)
-
-    except Exception as e:
-        logging.error(f"Error in run_initial_wickes: {str(e)}")
-        return {"status": "failed", "error": str(e)}
     
-def run_final_wickes():
-    error_log = []
+def run_wickes():
+    """Main function to run the scraping process."""
     try:
         category_paths = get_scraping_final_target_data()
         task_queue = queue.Queue()
@@ -394,23 +278,12 @@ def run_final_wickes():
 
         total_jobs = task_queue.qsize()
         logging.info(f'Total jobs to scrape: {total_jobs}')
-
-        final_scraping_process(task_queue, total_jobs, error_log)
-
-    except Exception as e:
-        logging.error(f"Error in run_final_wickes: {str(e)}")
-        return {"status": "failed", "error": str(e)}
-
-def run_wickes():
-    """Main function to run the scraping process."""
-    try:
-        run_initial_wickes()
-        time.sleep(10)
-        run_final_wickes()
+        with tqdm(total=total_jobs, desc="Final Wickes scraping progress") as progress_bar:
+            scraping_process(task_queue, total_jobs, error_log, progress_bar)
 
         return {"status": "success", "error_log": error_log}
     except Exception as e:
-        logging.error(f"Error in run_wickes: {str(e)}")
+        logging.error(f"Error in run_final_wickes: {str(e)}")
         return {"status": "failed", "error": str(e)}
 
 if __name__ == "__main__":
