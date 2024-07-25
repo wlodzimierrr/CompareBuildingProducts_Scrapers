@@ -1,12 +1,12 @@
 # Building Products Comparison Website
-**Front End**: [CompareBuildingProducts_Web](https://github.com/wlodzimierrr/CompareBuildingProducts_Web)
+
 ## Overview
 
 This project is a building products comparison website that enables users to compare prices and details from various hardware stores. The front end features a search bar and product categories for easy navigation. The back end is automated to efficiently manage data retrieval and server operations.
 
 ## Architecture
 
-### Front End
+### Front End: [CompareBuildingProducts_Web](https://github.com/wlodzimierrr/CompareBuildingProducts_Web)
 
 - **Technology**: Developed using Next.js.
 - **Hosting**: Hosted separately.
@@ -28,7 +28,7 @@ This project is a building products comparison website that enables users to com
 ### Scrapers
 
 - **Stores**: Dedicated scrapers for Tradepoint, Screwfix, and Wickes.
-- **Technology**: Python modules, with BeautifulSoup for Wickes scraping.
+- **Technology**: Python request modules and BeautifulSoup for Wickes scraping.
 - **Concurrency**: Uses multithreading to run all scrapers concurrently.
 - **History**: Initial versions used JavaScript with Puppeteer and Selenium in Python before transitioning to more efficient methods.
 
