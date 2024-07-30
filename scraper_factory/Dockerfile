@@ -11,10 +11,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /scraper_factory
 
 # Create the log directory
-RUN mkdir -p /home/ec2-user/logs
-
-# Set permissions
-RUN chmod -R 777 /home/ec2-user/logs
+RUN mkdir -p /scraper_factory/src/logs
 
 # Copy the requirements file
 COPY ./requirements.txt /scraper_factory/requirements.txt

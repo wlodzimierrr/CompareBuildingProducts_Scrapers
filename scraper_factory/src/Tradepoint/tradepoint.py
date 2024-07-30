@@ -6,6 +6,7 @@ import queue
 import os
 import sys
 import logging
+from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from .cookies_headers import headers
@@ -20,12 +21,12 @@ def get_scraping_target_data():
         conn = conn_to_pathsdb()
         logging.info("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT category_code, url, category_id, subcategory_id FROM tradepoint")  
+        cursor.execute("SELECT category_code, page_url, category, subcategory FROM tradepoint")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()
         
-        return [{"shop_id": 2, "category_code": row[0], "url": row[1], "category_id": row[2], "subcategory_id": row[3]} for row in data]
+        return [{"shop_id": 2, "category_code": row[0], "page_url": row[1], "category": row[2], "subcategory": row[3]} for row in data]
     except Exception as e:
         logging.error(f"Error connecting to the database: {e}")
         raise e    
@@ -40,8 +41,8 @@ def insert_scraped_data(data):
         
         for product in enriched_data:
             shop_id = data['shop_id']
-            category_id = data['category_id']
-            subcategory_id = data['subcategory_id']
+            category = data['category']
+            subcategory = data['subcategory']
             attributes = product.get('attributes', {})
             product_name = attributes.get('name', 'No Name Provided')
             page_url = attributes.get('pdpURL', '')
@@ -51,7 +52,9 @@ def insert_scraped_data(data):
             rating = 0.0
             price = 0.0
             rating_count = 0
-            
+
+            brand = next((spec.get('value') for spec in attributes.get("technicalSpecifications", []) if spec.get('name') == 'Brand'), 'No brand provided')
+
             if 'pricing' in attributes:
                 price_info = attributes['pricing']
                 price = price_info['currentPrice']['amountIncTax']
@@ -69,14 +72,14 @@ def insert_scraped_data(data):
                 cursor.execute(
                     """
                     INSERT INTO products (
-                        shop_id, category_id, subcategory_id, product_name, page_url, product_description, features, image_url, rating, rating_count, price, created_at, updated_at, last_checked_at
+                        shop_id, category, subcategory, product_name, page_url, product_description, features, image_url, rating, rating_count, price, brand, created_at, updated_at, last_checked_at
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                     ON CONFLICT (page_url) DO UPDATE SET
                         shop_id = EXCLUDED.shop_id,
-                        category_id = EXCLUDED.category_id,
-                        subcategory_id = EXCLUDED.subcategory_id,
+                        category = EXCLUDED.category,
+                        subcategory = EXCLUDED.subcategory,
                         product_name = EXCLUDED.product_name,
                         product_description = EXCLUDED.product_description,
                         features = EXCLUDED.features,
@@ -84,6 +87,7 @@ def insert_scraped_data(data):
                         rating = EXCLUDED.rating,
                         rating_count = EXCLUDED.rating_count,
                         price = EXCLUDED.price,
+                        brand = EXCLUDED.brand,
                         updated_at = CASE
                             WHEN products.price <> EXCLUDED.price
                                 OR products.product_name <> EXCLUDED.product_name
@@ -92,14 +96,15 @@ def insert_scraped_data(data):
                                 OR products.image_url <> EXCLUDED.image_url
                                 OR products.rating <> EXCLUDED.rating
                                 OR products.rating_count <> EXCLUDED.rating_count
-                                OR products.category_id <> EXCLUDED.category_id
-                                OR products.subcategory_id <> EXCLUDED.subcategory_id
+                                OR products.category <> EXCLUDED.category
+                                OR products.subcategory <> EXCLUDED.subcategory
+                                OR products.brand <> EXCLUDED.brand
                             THEN CURRENT_TIMESTAMP
                             ELSE products.updated_at
                         END,
                         last_checked_at = CURRENT_TIMESTAMP;
                     """,
-                    (shop_id, category_id, subcategory_id, product_name, page_url, product_description, features, image_url, rating, rating_count, price)
+                    (shop_id, category, subcategory, product_name, page_url, product_description, features, image_url, rating, rating_count, price, brand)
                 )
             except Exception as e:
                 logging.error(f"Error inserting product {product_name}: {e}")
@@ -230,26 +235,27 @@ def final_request(category_code, total_results):
             continue
     return all_responses
 
-def scraping_process(task_queue, total_jobs, error_log):
+def scraping_process(task_queue, total_jobs, error_log, progress_bar):
     """Main scraping process."""
     while not task_queue.empty():
         category_path_data = task_queue.get()
         shop_id = category_path_data['shop_id']
-        category_id = category_path_data['category_id']
-        subcategory_id = category_path_data['subcategory_id']
+        category = category_path_data['category']
+        subcategory = category_path_data['subcategory']
         category_code = category_path_data['category_code']
-        url = category_path_data['url']
+        page_url = category_path_data['page_url']
         
         logging.info('Making initial request...')
         try:
             response = initial_request(category_code)
         except Exception as e:
-            logging.error("Error making initial request for path %s: %s", url, e)
+            logging.error("Error making initial request for path %s: %s", page_url, e)
             error_log.append({
-                "path": url,
+                "path": page_url,
                 "error": str(e)
             })
             task_queue.task_done()
+            progress_bar.update(1)
             continue
             
         logging.info('Extracting item count...')
@@ -257,12 +263,13 @@ def scraping_process(task_queue, total_jobs, error_log):
         if isinstance(success_or_error, bool):
             success = success_or_error
         else:
-            logging.error("Error extracting item count for path %s: %s", url, success_or_error)
+            logging.error("Error extracting item count for path %s: %s", page_url, success_or_error)
             error_log.append({
-                "path": url,
+                "path": page_url,
                 "error": success_or_error
             })
             task_queue.task_done()
+            progress_bar.update(1)
             continue
             
         logging.info(f'Total item count for category: {total_results}')
@@ -281,8 +288,8 @@ def scraping_process(task_queue, total_jobs, error_log):
                 total_products_scraped += products_count
                 data_to_insert = {
                     'shop_id': shop_id,
-                    'category_id': category_id,
-                    'subcategory_id': subcategory_id,
+                    'category': category,
+                    'subcategory': subcategory,
                     'enrichedData': enriched_data
                 }
                 insert_scraped_data(data_to_insert)
@@ -290,13 +297,14 @@ def scraping_process(task_queue, total_jobs, error_log):
                 remaining_responses -= 1
             logging.info(f'Total products scraped: {total_products_scraped}')
         else:
-            logging.error('Missing paging info for category %s', url)
+            logging.error('Missing paging info for category %s', page_url)
             error_log.append({
-                "path": url,
+                "path": page_url,
                 "error": 'Missing paging info'
             })
             
         task_queue.task_done()
+        progress_bar.update(1)
         jobs_left = task_queue.qsize()
         logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
 
@@ -311,8 +319,8 @@ def run_tradepoint():
         
         total_jobs = task_queue.qsize()
         logging.info(f'Total jobs to scrape: {total_jobs}')
-            
-        scraping_process(task_queue, total_jobs, error_log)
+        with tqdm(total=total_jobs, desc="Tradepoint scraping progress") as progress_bar:
+            scraping_process(task_queue, total_jobs, error_log, progress_bar)
 
         return {"status": "success", "error_log": error_log}
     except Exception as e:
