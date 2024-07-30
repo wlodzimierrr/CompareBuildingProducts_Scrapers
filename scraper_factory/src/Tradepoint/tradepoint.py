@@ -72,39 +72,25 @@ def insert_scraped_data(data):
                 cursor.execute(
                     """
                     INSERT INTO products (
-                        shop_id, category, subcategory, product_name, page_url, product_description, features, image_url, rating, rating_count, price, brand, created_at, updated_at, last_checked_at
+                        shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand, created_at, last_checked_at
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                     ON CONFLICT (page_url) DO UPDATE SET
                         shop_id = EXCLUDED.shop_id,
                         category = EXCLUDED.category,
                         subcategory = EXCLUDED.subcategory,
                         product_name = EXCLUDED.product_name,
-                        product_description = EXCLUDED.product_description,
                         features = EXCLUDED.features,
                         image_url = EXCLUDED.image_url,
+                        product_description = EXCLUDED.product_description,
                         rating = EXCLUDED.rating,
                         rating_count = EXCLUDED.rating_count,
                         price = EXCLUDED.price,
                         brand = EXCLUDED.brand,
-                        updated_at = CASE
-                            WHEN products.price <> EXCLUDED.price
-                                OR products.product_name <> EXCLUDED.product_name
-                                OR products.product_description <> EXCLUDED.product_description
-                                OR products.features <> EXCLUDED.features
-                                OR products.image_url <> EXCLUDED.image_url
-                                OR products.rating <> EXCLUDED.rating
-                                OR products.rating_count <> EXCLUDED.rating_count
-                                OR products.category <> EXCLUDED.category
-                                OR products.subcategory <> EXCLUDED.subcategory
-                                OR products.brand <> EXCLUDED.brand
-                            THEN CURRENT_TIMESTAMP
-                            ELSE products.updated_at
-                        END,
                         last_checked_at = CURRENT_TIMESTAMP;
                     """,
-                    (shop_id, category, subcategory, product_name, page_url, product_description, features, image_url, rating, rating_count, price, brand)
+                    (shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand)
                 )
             except Exception as e:
                 logging.error(f"Error inserting product {product_name}: {e}")

@@ -41,7 +41,7 @@ def insert_scraped_data(product, error_log):
         subcategory = product['subcategory']
         image_url = product['image_url']
         page_url = product['page_url']
-        description = product['description']
+        product_description = product['description']
         features = product.get('features', '')
         rating = product['rating']
         rating_count = product['rating_count']
@@ -52,39 +52,26 @@ def insert_scraped_data(product, error_log):
         try:
             cursor.execute(
                 """
-                INSERT INTO products
-                (product_name, category, subcategory, image_url, page_url, product_description, features, rating, rating_count, price, brand, shop_id, created_at, updated_at, last_checked_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO products (
+                    shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand, created_at, last_checked_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
                 ON CONFLICT (page_url) DO UPDATE SET
-                    product_name = EXCLUDED.product_name,
+                    shop_id = EXCLUDED.shop_id,
                     category = EXCLUDED.category,
                     subcategory = EXCLUDED.subcategory,
+                    product_name = EXCLUDED.product_name,
+                    features = EXCLUDED.features,
                     image_url = EXCLUDED.image_url,
                     product_description = EXCLUDED.product_description,
-                    features = EXCLUDED.features,
                     rating = EXCLUDED.rating,
                     rating_count = EXCLUDED.rating_count,
                     price = EXCLUDED.price,
                     brand = EXCLUDED.brand,
-                    shop_id = EXCLUDED.shop_id,
-                    updated_at = CASE
-                        WHEN products.product_name <> EXCLUDED.product_name
-                            OR products.category <> EXCLUDED.category
-                            OR products.subcategory <> EXCLUDED.subcategory
-                            OR products.image_url <> EXCLUDED.image_url
-                            OR products.price <> EXCLUDED.price
-                            OR products.rating <> EXCLUDED.rating
-                            OR products.features <> EXCLUDED.features
-                            OR products.rating_count <> EXCLUDED.rating_count
-                            OR products.product_description <> EXCLUDED.product_description
-                            OR products.brand <> EXCLUDED.brand
-                            OR products.shop_id <> EXCLUDED.shop_id
-                        THEN CURRENT_TIMESTAMP
-                        ELSE products.updated_at
-                    END,
-                    last_checked_at = CURRENT_TIMESTAMP
+                    last_checked_at = CURRENT_TIMESTAMP;
                 """,
-                (product_name, category, subcategory, image_url, page_url, description, features, rating, rating_count, price, brand, shop_id)
+                (shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand)
             )
         except Exception as e:
             logging.error(f"Error inserting product {page_url}: {e}")

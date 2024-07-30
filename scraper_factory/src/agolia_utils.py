@@ -1,5 +1,5 @@
-from algoliasearch.search_client import SearchClient
 import logging
+from algoliasearch.search_client import SearchClient
 from config import agolia_app_id, agolia_password
 from db_utils import conn_to_storagedb
 
@@ -21,11 +21,10 @@ def prepare_records(records):
             "objectID": row[0],  
             "product_id": row[0],
             "shop_id": row[1],
-            "category_id": row[12],
-            "subcategory_id": row[13],
+            "category": row[12],
+            "subcategory": row[13],
+            "brand": row[15],
             "last_checked_at": row[14],
-            "category_name": row[15],
-            "subcategory_name": row[16],
             "product_name": row[2],
             "product_description": row[3],
             "price": row[4],
@@ -49,31 +48,26 @@ def insert_agolia():
         cursor.execute(
             """
                 SELECT 
-                    p.product_id,
-                    p.shop_id,
-                    p.product_name,
-                    p.product_description,
-                    p.price,
-                    p.rating_count,
-                    p.rating,
-                    p.image_url,
-                    p.updated_at,
-                    p.created_at,
-                    p.page_url,
-                    p.features,
-                    p.category_id,
-                    p.subcategory_id,
-                    p.last_checked_at,
-                    c.category_name,
-                    s.subcategory_name
+                    product_id,
+                    shop_id,
+                    product_name,
+                    product_description,
+                    price,
+                    rating_count,
+                    rating,
+                    image_url,
+                    updated_at,
+                    created_at,
+                    page_url,
+                    features,
+                    category,
+                    subcategory,
+                    last_checked_at,
+                    brand
                 FROM 
-                    products p
-                JOIN 
-                    categories c ON p.category_id = c.category_id
-                JOIN 
-                    subcategories s ON p.subcategory_id = s.subcategory_id
+                    products
                 WHERE
-                    p.last_checked_at >= NOW() - INTERVAL '24 hours';
+                    last_checked_at >= NOW() - INTERVAL '24 hours';
             """)
         
         client = SearchClient.create(agolia_app_id, agolia_password)

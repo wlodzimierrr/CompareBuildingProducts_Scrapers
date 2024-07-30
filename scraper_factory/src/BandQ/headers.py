@@ -1,0 +1,17 @@
+headers = {
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+    'Authorization': 'Atmosphere atmosphere_app_id=kingfisher-7c4QgmLEROp4PUh0oUebbI94',
+    'Connection': 'keep-alive',
+    'Origin': 'https://www.diy.com',
+    'Referer': 'https://www.diy.com/',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'cross-site',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'x-dtc': 'sn="v_4_srv_5_sn_NLMBK83DIAMOLQ5TRG924J2B5L4GICAG", pc="5$551111925_764h2vKWMDARCFKRURHLLDDOEHPMKRAFLPAIGP-0e0", v="1721944522447BQSJRJULBNOFDCQPIO26V9Q2PFS1L41V", app="7457707b1f8ae747", r="https://www.diy.com/departments/building-supplies/DIY762928.cat"',
+    'x-tenant': 'BQUK',
+}

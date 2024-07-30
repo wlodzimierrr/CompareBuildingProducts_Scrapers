@@ -1,5 +1,5 @@
 # Building Products Comparison Website
-**Front End**: [CompareBuildingProducts_Web](https://github.com/wlodzimierrr/CompareBuildingProducts_Web)
+
 ## Overview
 
 This project is a building products comparison website that enables users to compare prices and details from various hardware stores. The front end features a search bar and product categories for easy navigation. The back end is automated to efficiently manage data retrieval and server operations.

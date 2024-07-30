@@ -29,6 +29,8 @@ logging.getLogger().addHandler(console_handler)
 from Tradepoint.tradepoint import run_tradepoint
 from Screwfix.screwfix import run_screwfix
 from Wickes.wickes import run_wickes
+from BandQ.bandq import run_bandq
+
 from email_utils import send_email
 from agolia_utils import insert_agolia
 from lambda_ec2_stop import stop_ec2
@@ -111,15 +113,42 @@ def start_wickes():
         logging.error('An error occurred in Wickes scraper: %s', e)
     return wickes_output
 
+def start_bandq():
+    try:
+        logging.info('Starting B&Q scraper...')
+        bandq_output = run_bandq()
+        if bandq_output['status'] == 'success':
+            if bandq_output['error_log']:
+                unsuccessfull_msg = ("Task B&Q", "B&Q Scraper has finished running with some errors. See the attached log file.", log_file)
+                send_email(*unsuccessfull_msg)
+                logging.warning('B&Q scraper finished with errors.')
+                return unsuccessfull_msg
+            else:
+                successfull_msg = ("Task B&Q", "B&Q Scraper has finished running successfully with no errors.")
+                send_email(*successfull_msg)
+                logging.info('B&Q scraper finished successfully.')
+                return successfull_msg
+        else:
+            failed_msg = ("Task Failed", f"An error occurred: {bandq_output['error']}", log_file)
+            send_email(*failed_msg)
+            logging.error('B&Q scraper failed: %s', bandq_output['error'])
+            return failed_msg
+    except Exception as e:
+        bandq_output = {"status": "failed", "error": str(e)}
+        send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
+        logging.error('An error occurred in B&Q scraper: %s', e)
+    return bandq_output
+
 def main():
     try:
         logging.info('Starting main function...')
 
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             futures = {
+                executor.submit(start_wickes): 'wickes',
+                executor.submit(start_bandq): 'bandq',
                 executor.submit(start_tradepoint): 'tradepoint',
                 executor.submit(start_screwfix): 'screwfix',
-                executor.submit(start_wickes): 'wickes'
             }
 
             results = {}
