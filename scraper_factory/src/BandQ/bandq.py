@@ -58,7 +58,7 @@ def insert_scraped_data(data):
             enriched_data = data['enrichedData']
             
             for product in enriched_data:
-                fulfilment_options = product['attributes']['fulfilmentOptions']
+                fulfilment_options = product.get('attributes', {}).get('fulfilmentOptions', [])                
                 if check_availability(fulfilment_options):
                     shop_id = data['shop_id']
                     category = data['category']

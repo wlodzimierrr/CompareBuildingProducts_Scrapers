@@ -143,25 +143,32 @@ def main():
     try:
         logging.info('Starting main function...')
 
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {
-                executor.submit(start_wickes): 'wickes',
-                executor.submit(start_bandq): 'bandq',
-                executor.submit(start_tradepoint): 'tradepoint',
-                executor.submit(start_screwfix): 'screwfix',
-            }
+        scrapers = [
+            ('wickes', start_wickes),
+            ('bandq', start_bandq),
+            ('tradepoint', start_tradepoint),
+            ('screwfix', start_screwfix)
+        ]
 
-            results = {}
-            for future in as_completed(futures):
-                scraper = futures[future]
-                try:
-                    result = future.result()
-                    results[scraper] = result
-                    logging.info(f'{scraper} scraper result: {result}')
-                except Exception as e:
-                    logging.error(f'{scraper} scraper generated an exception: {e}')
-                    results[scraper] = {"status": "failed", "error": str(e)}
-                    send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
+        results = {}
+        for i in range(0, len(scrapers), 2):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = {
+                    executor.submit(scrapers[i][1]): scrapers[i][0],
+                    executor.submit(scrapers[i+1][1]): scrapers[i+1][0] if i+1 < len(scrapers) else None
+                }
+
+                for future in as_completed(futures):
+                    scraper = futures[future]
+                    if scraper:
+                        try:
+                            result = future.result()
+                            results[scraper] = result
+                            logging.info(f'{scraper} scraper result: {result}')
+                        except Exception as e:
+                            logging.error(f'{scraper} scraper generated an exception: {e}')
+                            results[scraper] = {"status": "failed", "error": str(e)}
+                            send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
 
         logging.info('Inserting new data to Agolia Search...')
         insert_agolia()
