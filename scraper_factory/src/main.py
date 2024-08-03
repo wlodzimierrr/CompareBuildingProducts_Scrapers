@@ -138,52 +138,41 @@ def start_bandq():
         send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
         logging.error('An error occurred in B&Q scraper: %s', e)
     return bandq_output
-
 def main():
-    try:
-        logging.info('Starting main function...')
+      try:
+          logging.info('Starting main function...')
 
-        scrapers = [
-            ('wickes', start_wickes),
-            ('bandq', start_bandq),
-            ('tradepoint', start_tradepoint),
-            ('screwfix', start_screwfix)
-        ]
+          scrapers = [
+              ('wickes', start_wickes),
+              ('bandq', start_bandq),
+              ('tradepoint', start_tradepoint),
+              ('screwfix', start_screwfix)
+          ]
 
-        results = {}
-        for i in range(0, len(scrapers), 2):
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                futures = {
-                    executor.submit(scrapers[i][1]): scrapers[i][0],
-                    executor.submit(scrapers[i+1][1]): scrapers[i+1][0] if i+1 < len(scrapers) else None
-                }
+          results = {}
+          for scraper_name, scraper_func in scrapers:
+              try:
+                  result = scraper_func()
+                  results[scraper_name] = result
+                  logging.info(f'{scraper_name} scraper result: {result}')
+              except Exception as e:
+                  logging.error(f'{scraper_name} scraper generated an exception: {e}')
+                  results[scraper_name] = {"status": "failed", "error": str(e)}
+                  send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
 
-                for future in as_completed(futures):
-                    scraper = futures[future]
-                    if scraper:
-                        try:
-                            result = future.result()
-                            results[scraper] = result
-                            logging.info(f'{scraper} scraper result: {result}')
-                        except Exception as e:
-                            logging.error(f'{scraper} scraper generated an exception: {e}')
-                            results[scraper] = {"status": "failed", "error": str(e)}
-                            send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
+          logging.info('Inserting new data to Agolia Search...')
+          insert_agolia()
 
-        logging.info('Inserting new data to Agolia Search...')
-        insert_agolia()
+          logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
 
-        logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
+          logging.info('Stopping EC2 instance...')
+          stop_ec2()
 
-        logging.info('Stopping EC2 instance...')
-        stop_ec2()
+          logging.info('Main function execution completed.')
 
-        logging.info('Main function execution completed.')
-
-    except Exception as e:
-        logging.error('An unexpected error occurred: %s', e)
-        send_email("Task Failed", f"An unexpected error occurred: {str(e)}", log_file)
-        raise
-
+      except Exception as e:
+          logging.error('An unexpected error occurred: %s', e)
+          send_email("Task Failed", f"An unexpected error occurred: {str(e)}", log_file)
+          raise
 if __name__ == '__main__':
     main()

@@ -25,7 +25,7 @@ def get_scraping_target_data():
         data = cursor.fetchall()
         cursor.close()
         conn.close()
-        
+
         return [{"shop_id": 1, "category_code": row[0], "page_url": row[1], "category": row[2], "subcategory": row[3]} for row in data]
     except Exception as e:
         logging.error(f"Error connecting to the database: {e}")
