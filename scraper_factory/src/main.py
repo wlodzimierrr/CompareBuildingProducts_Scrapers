@@ -143,7 +143,7 @@ def main():
           logging.info('Starting main function...')
 
           scrapers = [
-              ('wickes', start_wickes),
+            #   ('wickes', start_wickes),
               ('bandq', start_bandq),
               ('tradepoint', start_tradepoint),
               ('screwfix', start_screwfix)
