@@ -21,7 +21,7 @@ def get_scraping_target_data():
         conn = conn_to_pathsdb()
         logging.info("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT category_code, page_url, category, subcategory FROM bandq")  
+        cursor.execute("SELECT category_code, page_url, category, subcategory FROM bandq LIMIT 1")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -48,7 +48,7 @@ def check_availability(fulfilment_options):
             return True
     return False
 
-def insert_scraped_data(data):
+def insert_scraped_data(data, batch_size=100):
     """Insert scraped data into the storage database."""
     try:
         conn = conn_to_storagedb()
@@ -56,6 +56,7 @@ def insert_scraped_data(data):
         
         with conn.cursor() as cursor:
             enriched_data = data['enrichedData']
+            batch = []
             
             for product in enriched_data:
                 fulfilment_options = product.get('attributes', {}).get('fulfilmentOptions', [])                
@@ -88,41 +89,78 @@ def insert_scraped_data(data):
                         if item.get('description') == 'PrimaryImage':
                             image_url = item['url'].replace('{width}', str(284)).replace('{height}', str(284))
                     
-                    try:
-                        cursor.execute(
-                        """
-                        INSERT INTO products (
-                            shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand, created_at, last_checked_at
-                        ) VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-                        )
-                        ON CONFLICT (page_url) DO UPDATE SET
-                            shop_id = EXCLUDED.shop_id,
-                            category = EXCLUDED.category,
-                            subcategory = EXCLUDED.subcategory,
-                            product_name = EXCLUDED.product_name,
-                            features = EXCLUDED.features,
-                            image_url = EXCLUDED.image_url,
-                            product_description = EXCLUDED.product_description,
-                            rating = EXCLUDED.rating,
-                            rating_count = EXCLUDED.rating_count,
-                            price = EXCLUDED.price,
-                            brand = EXCLUDED.brand,
-                            last_checked_at = CURRENT_TIMESTAMP;
-                        """,
-                        (shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand)
-                    )
-                    except Exception as e:
-                        logging.error(f"Error inserting product {product_name}: {e}")
-                        error_log.append({
-                            "Product name": product_name,
-                            "Page url": page_url,
-                            "error": 'Inserting error'
-                        })
+                    batch.append((shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand))
+                    
+                    if len(batch) >= batch_size:
+                        try:
+                            cursor.executemany(
+                            """
+                            INSERT INTO products (
+                                shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand, created_at, last_checked_at
+                            ) VALUES (
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                            )
+                            ON CONFLICT (page_url) DO UPDATE SET
+                                shop_id = EXCLUDED.shop_id,
+                                category = EXCLUDED.category,
+                                subcategory = EXCLUDED.subcategory,
+                                product_name = EXCLUDED.product_name,
+                                features = EXCLUDED.features,
+                                image_url = EXCLUDED.image_url,
+                                product_description = EXCLUDED.product_description,
+                                rating = EXCLUDED.rating,
+                                rating_count = EXCLUDED.rating_count,
+                                price = EXCLUDED.price,
+                                brand = EXCLUDED.brand,
+                                last_checked_at = CURRENT_TIMESTAMP;
+                            """,
+                            batch
+                            )
+                            conn.commit()
+                            batch = []
+                        except Exception as e:
+                            logging.error(f"Error inserting batch: {e}")
+                            error_log.append({
+                                "Batch": str(batch),
+                                "error": 'Inserting error'
+                            })
                 else:
                     logging.info(f"Product {product_name} is not available")
+            
+            # Insert any remaining products
+            if batch:
+                try:
+                    cursor.executemany(
+                    """
+                    INSERT INTO products (
+                        shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand, created_at, last_checked_at
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    )
+                    ON CONFLICT (page_url) DO UPDATE SET
+                        shop_id = EXCLUDED.shop_id,
+                        category = EXCLUDED.category,
+                        subcategory = EXCLUDED.subcategory,
+                        product_name = EXCLUDED.product_name,
+                        features = EXCLUDED.features,
+                        image_url = EXCLUDED.image_url,
+                        product_description = EXCLUDED.product_description,
+                        rating = EXCLUDED.rating,
+                        rating_count = EXCLUDED.rating_count,
+                        price = EXCLUDED.price,
+                        brand = EXCLUDED.brand,
+                        last_checked_at = CURRENT_TIMESTAMP;
+                    """,
+                    batch
+                    )
+                    conn.commit()
+                except Exception as e:
+                    logging.error(f"Error inserting final batch: {e}")
+                    error_log.append({
+                        "Batch": str(batch),
+                        "error": 'Inserting error'
+                    })
         
-        conn.commit()
     except Exception as e:
         logging.error(f"Error inserting data into the target database: {e}")
         raise e
@@ -190,12 +228,12 @@ def get_total_page_count(response):
         logging.error("Failed to fetch data or no response")
         return 0, False
 
-def final_request(category_code, total_results):
-    """Make final API request."""
+def final_request(category_code, total_results, shop_id, category, subcategory):
+    """Make final API request and process data in streams."""
     max_items_per_page = 200
     num_pages = (total_results // max_items_per_page) + (1 if total_results % max_items_per_page > 0 else 0)
     logging.info(f'Total number of pages: {num_pages}')
-    all_responses = []
+    
     for page in range(1, num_pages + 1):
         time.sleep(random.uniform(5, 10))
         try:
@@ -205,8 +243,17 @@ def final_request(category_code, total_results):
                 headers=headers,
             )
             response.raise_for_status()
-            all_responses.append(response.json())
-             
+            data = response.json()
+            
+            # Process and insert data immediately
+            data_to_insert = {
+                'shop_id': shop_id,
+                'category': category,
+                'subcategory': subcategory,
+                'enrichedData': data['data']
+            }
+            insert_scraped_data(data_to_insert)
+            
         except requests.exceptions.HTTPError as http_err:
             logging.error(f"HTTP error occurred during the API request on page {page}: {http_err}")
             error_log.append({
@@ -243,7 +290,6 @@ def final_request(category_code, total_results):
                 "error": str(e)
             })  
             continue
-    return all_responses
 
 def scraping_process(task_queue, total_jobs, error_log, progress_bar):
     """Main scraping process."""
@@ -285,27 +331,8 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
         logging.info(f'Total item count for category: {total_results}')
         
         if success:
-            logging.info('Making final request...')
-            all_responses = final_request(category_code, total_results)
-            logging.info('Handling data insertion...')
-            total_responses = len(all_responses)
-            logging.info(f'Inserting {total_responses} responses')
-            remaining_responses = total_responses
-            total_products_scraped = 0
-            for response_data in all_responses:
-                enriched_data = response_data['data']
-                products_count = len(enriched_data)
-                total_products_scraped += products_count
-                data_to_insert = {
-                    'shop_id': shop_id,
-                    'category': category,
-                    'subcategory': subcategory,
-                    'enrichedData': enriched_data
-                }
-                insert_scraped_data(data_to_insert)
-                logging.info(f'{remaining_responses} / {total_responses}')
-                remaining_responses -= 1
-            logging.info(f'Total products scraped: {total_products_scraped}')
+            logging.info('Making final request and processing data...')
+            final_request(category_code, total_results, shop_id, category, subcategory)
         else:
             logging.error('Missing paging info for category %s', page_url)
             error_log.append({
