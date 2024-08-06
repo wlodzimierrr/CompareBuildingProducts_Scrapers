@@ -21,7 +21,7 @@ def get_scraping_target_data():
         conn = conn_to_pathsdb()
         logging.info("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT category_code, page_url, category, subcategory FROM bandq LIMIT 1")  
+        cursor.execute("SELECT category_code, page_url, category, subcategory FROM bandq")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()

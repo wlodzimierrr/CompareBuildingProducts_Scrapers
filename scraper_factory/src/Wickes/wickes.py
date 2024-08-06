@@ -195,7 +195,7 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
                 brand_name = brand if brand else 'No brand provided'
 
             else:
-                logging.error("No script tag with JSON data found.")
+                logging.info("No script tag with JSON data found.")
 
             if price is None:
                 price_tag = soup.find('div', class_='main-price__value pdp-price__new-price')

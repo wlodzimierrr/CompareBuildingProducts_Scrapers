@@ -139,40 +139,45 @@ def start_bandq():
         logging.error('An error occurred in B&Q scraper: %s', e)
     return bandq_output
 def main():
-      try:
-          logging.info('Starting main function...')
+    try:
+        logging.info('Starting main function...')
+        
+        scrapers = [
+            ('wickes', start_wickes),
+            ('bandq', start_bandq),
+            ('tradepoint', start_tradepoint),
+            ('screwfix', start_screwfix)
+        ]
 
-          scrapers = [
-            #   ('wickes', start_wickes),
-              ('bandq', start_bandq),
-              ('tradepoint', start_tradepoint),
-              ('screwfix', start_screwfix)
-          ]
+        results = {}
+        futures = []
+        with ThreadPoolExecutor() as executor:
+            for scraper_name, scraper_func in scrapers:
+                futures.append((scraper_name, executor.submit(scraper_func)))
 
-          results = {}
-          for scraper_name, scraper_func in scrapers:
-              try:
-                  result = scraper_func()
-                  results[scraper_name] = result
-                  logging.info(f'{scraper_name} scraper result: {result}')
-              except Exception as e:
-                  logging.error(f'{scraper_name} scraper generated an exception: {e}')
-                  results[scraper_name] = {"status": "failed", "error": str(e)}
-                  send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
+            for scraper_name, future in futures:
+                try:
+                    result = future.result()
+                    results[scraper_name] = result
+                    logging.info(f'{scraper_name} scraper result: {result}')
+                except Exception as e:
+                    logging.error(f'{scraper_name} scraper generated an exception: {e}')
+                    results[scraper_name] = {"status": "failed", "error": str(e)}
+                    send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
 
-          logging.info('Inserting new data to Agolia Search...')
-          insert_agolia()
+        logging.info('Inserting new data to Agolia Search...')
+        insert_agolia()
 
-          logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
+        logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
 
-          logging.info('Stopping EC2 instance...')
-          stop_ec2()
+        logging.info('Stopping EC2 instance...')
+        stop_ec2()
 
-          logging.info('Main function execution completed.')
+        logging.info('Main function execution completed.')
 
-      except Exception as e:
-          logging.error('An unexpected error occurred: %s', e)
-          send_email("Task Failed", f"An unexpected error occurred: {str(e)}", log_file)
-          raise
+    except Exception as e:
+        logging.error('An unexpected error occurred: %s', e)
+        send_email("Task Failed", f"An unexpected error occurred: {str(e)}", log_file)
+        raise
 if __name__ == '__main__':
     main()
