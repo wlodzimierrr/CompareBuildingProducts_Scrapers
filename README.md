@@ -11,6 +11,11 @@ This project is a building products comparison website that enables users to com
 - **Technology**: Developed using Next.js.
 - **Hosting**: Hosted separately.
 - **Features**: Interactive UI with search functionality and product categorization.
+  
+### Mobile App: [CompareBuildingProducts_App](https://github.com/wlodzimierrr/CompareBuildingProducts_App)
+- **Technology**: Developed using Next.js, Ionic, Capacitor.
+- **Hosting**: Not yet.
+- **Features**: Interactive UI with search functionality.
 
 ### Back End
 
