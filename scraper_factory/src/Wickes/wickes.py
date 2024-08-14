@@ -86,12 +86,7 @@ def insert_scraped_data(product, error_log):
         logging.error(f"Error inserting data into the target database: {e}")
         raise e
 
-
-import logging
-from bs4 import BeautifulSoup
-import requests
-
-def scraping_process(task_queue, total_jobs, error_log, progress_bar):
+def scraping_process(task_queue, total_jobs, error_log, progress_bar, prometheus_metrics=None):
     """Main scraping process."""
     while not task_queue.empty():
         product_path_data = task_queue.get()
@@ -247,7 +242,7 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
                 "error": str(e)
             })
         except json.JSONDecodeError as e:
-            logging.error(f"Error parsing JSON from {product_path}: {e}")
+            logging.info(f"Error parsing JSON from {product_path}: {e}")
             error_log.append({
                 "Product_path": str(product_path),
                 "error": str(e)
@@ -263,11 +258,16 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
             task_queue.task_done()
             progress_bar.update(1)
             jobs_left = task_queue.qsize()
+     
+            if prometheus_metrics:
+                progress = (jobs_left / total_jobs) * 100
+                prometheus_metrics.update_progress('wickes', progress)
+                prometheus_metrics.update_jobs_remaining('wickes', jobs_left)
             logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
             time.sleep(2)
 
     
-def run_wickes():
+def run_wickes(prometheus_metrics=None):
     """Main function to run the scraping process."""
     try:
         category_paths = get_scraping_target_data()
@@ -278,12 +278,24 @@ def run_wickes():
 
         total_jobs = task_queue.qsize()
         logging.info(f'Total jobs to scrape: {total_jobs}')
-        with tqdm(total=total_jobs, desc="Final Wickes scraping progress") as progress_bar:
+
+        if prometheus_metrics:
+            prometheus_metrics.set_total_jobs('wickes', total_jobs)
+
+
+        with tqdm(total=total_jobs, desc="Wickes scraping progress") as progress_bar:
             scraping_process(task_queue, total_jobs, error_log, progress_bar)
 
-        return {"status": "success", "error_log": error_log}
+        if prometheus_metrics:
+            prometheus_metrics.update_progress('wickes', 100)
+            prometheus_metrics.update_jobs_remaining('wickes', 0)
+
+
+        return {"status": "success", "error_log": error_log, "total_jobs": total_jobs}
     except Exception as e:
         logging.error(f"Error in run_final_wickes: {str(e)}")
+        if prometheus_metrics:
+            prometheus_metrics.update_progress('wickes', 0)
         return {"status": "failed", "error": str(e)}
 
 if __name__ == "__main__":

@@ -222,7 +222,7 @@ def final_request(category_path, total_results):
             continue
     return all_responses 
 
-def scraping_process(task_queue, total_jobs, error_log, progress_bar):
+def scraping_process(task_queue, total_jobs, error_log, progress_bar, prometheus_metrics=None):
     """Main scraping process."""
     while not task_queue.empty():
         category_path_data = task_queue.get()
@@ -292,9 +292,14 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
         task_queue.task_done()
         progress_bar.update(1)
         jobs_left = task_queue.qsize()
+
+        if prometheus_metrics:
+            progress = (jobs_left / total_jobs) * 100
+            prometheus_metrics.update_progress('screwfix', progress)
+            prometheus_metrics.update_jobs_remaining('screwfix', jobs_left)
         logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
 
-def run_screwfix():
+def run_screwfix(prometheus_metrics=None):
     """Main function to run the scraping process."""
     try:
         category_paths = get_scraping_target_data()
@@ -307,11 +312,17 @@ def run_screwfix():
         logging.info(f'Total jobs to scrape: {total_jobs}')
             
         with tqdm(total=total_jobs, desc="Screwfix scraping progress") as progress_bar:
-            scraping_process(task_queue, total_jobs, error_log, progress_bar)
+            scraping_process(task_queue, total_jobs, error_log, progress_bar, prometheus_metrics)
 
-        return {"status": "success", "error_log": error_log}
+        if prometheus_metrics:
+            prometheus_metrics.update_progress('screwfix', 100)
+            prometheus_metrics.update_jobs_remaining('screwfix', 0)
+
+        return {"status": "success", "error_log": error_log, "screwfix": total_jobs}
     except Exception as e:
         logging.error(f"Error in run_screwfix: {str(e)}")
+        if prometheus_metrics:
+            prometheus_metrics.update_progress('screwfix', 0)
         return {"status": "failed", "error": str(e)}
     
 if __name__ == "__main__":

@@ -221,7 +221,7 @@ def final_request(category_code, total_results):
             continue
     return all_responses
 
-def scraping_process(task_queue, total_jobs, error_log, progress_bar):
+def scraping_process(task_queue, total_jobs, error_log, progress_bar, prometheus_metrics=None):
     """Main scraping process."""
     while not task_queue.empty():
         category_path_data = task_queue.get()
@@ -292,9 +292,14 @@ def scraping_process(task_queue, total_jobs, error_log, progress_bar):
         task_queue.task_done()
         progress_bar.update(1)
         jobs_left = task_queue.qsize()
+     
+        if prometheus_metrics:
+            progress = (jobs_left / total_jobs) * 100
+            prometheus_metrics.update_progress('tradepoint', progress)
+            prometheus_metrics.update_jobs_remaining('tradepoint', jobs_left)
         logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
 
-def run_tradepoint():
+def run_tradepoint(prometheus_metrics=None):
     """Main function to run the scraping process."""
     try:
         category_paths = get_scraping_target_data()
@@ -305,12 +310,22 @@ def run_tradepoint():
         
         total_jobs = task_queue.qsize()
         logging.info(f'Total jobs to scrape: {total_jobs}')
-        with tqdm(total=total_jobs, desc="Tradepoint scraping progress") as progress_bar:
-            scraping_process(task_queue, total_jobs, error_log, progress_bar)
 
-        return {"status": "success", "error_log": error_log}
+        if prometheus_metrics:
+            prometheus_metrics.set_total_jobs('tradepoint', total_jobs)
+
+        with tqdm(total=total_jobs, desc="Tradepoint scraping progress") as progress_bar:
+            scraping_process(task_queue, total_jobs, error_log, progress_bar, prometheus_metrics)
+
+        if prometheus_metrics:
+            prometheus_metrics.update_progress('tradepoint', 100)
+            prometheus_metrics.update_jobs_remaining('tradepoint', 0)
+
+        return {"status": "success", "error_log": error_log, "total_jobs": total_jobs}
     except Exception as e:
         logging.error(f"Error in run_tradepoint: {str(e)}")
+        if prometheus_metrics:
+            prometheus_metrics.update_progress('tradepoint', 0)
         return {"status": "failed", "error": str(e)}
     
 if __name__ == "__main__":

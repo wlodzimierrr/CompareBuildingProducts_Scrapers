@@ -20,7 +20,7 @@ logging.basicConfig(
     ]
 )
 
-console_handler = logging.StreamHandler(sys.stdout)
+console_handler = logging.StreamHandler(sys.stderr)
 console_handler.setLevel(logging.ERROR)
 console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
 
@@ -35,10 +35,13 @@ from email_utils import send_email
 from agolia_utils import insert_agolia
 from lambda_ec2_stop import stop_ec2
 
-def start_tradepoint():
+from prometheus_metrics import initialize_prometheus_server
+prometheus_metrics = initialize_prometheus_server(7000)
+
+def start_tradepoint(prometheus_metrics):
     try:
         logging.info('Starting Tradepoint scraper...')
-        tradepoint_output = run_tradepoint()
+        tradepoint_output = run_tradepoint(prometheus_metrics)
         if tradepoint_output['status'] == 'success':
             if tradepoint_output['error_log']:
                 unsuccessfull_msg = ("Task Tradepoint", "Tradepoint Scraper has finished running with some errors. See the attached log file.", log_file)
@@ -61,10 +64,10 @@ def start_tradepoint():
         logging.error('An error occurred in Tradepoint scraper: %s', e)
     return tradepoint_output
 
-def start_screwfix():
+def start_screwfix(prometheus_metrics):
     try:
         logging.info('Starting Screwfix scraper...')
-        screwfix_output = run_screwfix()
+        screwfix_output = run_screwfix(prometheus_metrics)
         if screwfix_output['status'] == 'success':
             if screwfix_output['error_log']:
                 unsuccessfull_msg = ("Task Screwfix", "Screwfix Scraper has finished running with some errors. See the attached log file.", log_file)
@@ -87,10 +90,10 @@ def start_screwfix():
         logging.error('An error occurred in Screwfix scraper: %s', e)
     return screwfix_output
 
-def start_wickes():
+def start_wickes(prometheus_metrics):
     try:
         logging.info('Starting Wickes scraper...')
-        wickes_output = run_wickes()
+        wickes_output = run_wickes(prometheus_metrics)
         if wickes_output['status'] == 'success':
             if wickes_output['error_log']:
                 unsuccessfull_msg = ("Task Wickes", "Wickes Scraper has finished running with some errors. See the attached log file.", log_file)
@@ -113,10 +116,10 @@ def start_wickes():
         logging.error('An error occurred in Wickes scraper: %s', e)
     return wickes_output
 
-def start_bandq():
+def start_bandq(prometheus_metrics):
     try:
         logging.info('Starting B&Q scraper...')
-        bandq_output = run_bandq()
+        bandq_output = run_bandq(prometheus_metrics)
         if bandq_output['status'] == 'success':
             if bandq_output['error_log']:
                 unsuccessfull_msg = ("Task B&Q", "B&Q Scraper has finished running with some errors. See the attached log file.", log_file)
@@ -138,15 +141,16 @@ def start_bandq():
         send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
         logging.error('An error occurred in B&Q scraper: %s', e)
     return bandq_output
+
 def main():
     try:
         logging.info('Starting main function...')
         
         scrapers = [
-            ('wickes', start_wickes),
-            ('bandq', start_bandq),
-            ('tradepoint', start_tradepoint),
-            ('screwfix', start_screwfix)
+            ('wickes', lambda: start_wickes(prometheus_metrics)),
+            ('bandq', lambda: start_bandq(prometheus_metrics)),
+            ('tradepoint', lambda: start_tradepoint(prometheus_metrics)),
+            ('screwfix', lambda: start_screwfix(prometheus_metrics))
         ]
 
         results = {}
