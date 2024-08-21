@@ -21,7 +21,7 @@ def get_scraping_target_data():
         conn = conn_to_pathsdb()
         logging.info("Paths database connection successful")
         cursor = conn.cursor()
-        cursor.execute("SELECT shop_id, category, subcategory, category_path FROM screwfix")  
+        cursor.execute("SELECT shop_id, category, subcategory, category_path FROM screwfix LIMIT 1")  
         data = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -310,7 +310,10 @@ def run_screwfix(prometheus_metrics=None):
         
         total_jobs = task_queue.qsize()
         logging.info(f'Total jobs to scrape: {total_jobs}')
-            
+        
+        if prometheus_metrics:
+            prometheus_metrics.set_total_jobs('screwfix', total_jobs)
+
         with tqdm(total=total_jobs, desc="Screwfix scraping progress") as progress_bar:
             scraping_process(task_queue, total_jobs, error_log, progress_bar, prometheus_metrics)
 

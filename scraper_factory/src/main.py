@@ -26,10 +26,10 @@ console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(
 
 logging.getLogger().addHandler(console_handler)
 
-from Tradepoint.tradepoint import run_tradepoint
-from Screwfix.screwfix import run_screwfix
-from Wickes.wickes import run_wickes
-from BandQ.bandq import run_bandq
+from Wickes.start_wickes import start_wickes
+from Tradepoint.start_tradepoint import start_tradepoint
+from Screwfix.start_screwfix import start_screwfix
+from BandQ.start_bandq import start_bandq
 
 from email_utils import send_email
 from agolia_utils import insert_agolia
@@ -38,123 +38,20 @@ from lambda_ec2_stop import stop_ec2
 from prometheus_metrics import initialize_prometheus_server
 prometheus_metrics = initialize_prometheus_server(7000)
 
-def start_tradepoint(prometheus_metrics):
-    try:
-        logging.info('Starting Tradepoint scraper...')
-        tradepoint_output = run_tradepoint(prometheus_metrics)
-        if tradepoint_output['status'] == 'success':
-            if tradepoint_output['error_log']:
-                unsuccessfull_msg = ("Task Tradepoint", "Tradepoint Scraper has finished running with some errors. See the attached log file.", log_file)
-                send_email(*unsuccessfull_msg)
-                logging.warning('Tradepoint scraper finished with errors.')
-                return unsuccessfull_msg
-            else:
-                successfull_msg = ("Task Tradepoint", "Tradepoint Scraper has finished running successfully with no errors.")
-                send_email(*successfull_msg)
-                logging.info('Tradepoint scraper finished successfully.')
-                return successfull_msg
-        else:
-            failed_msg = ("Task Failed", f"An error occurred: {tradepoint_output['error']}", log_file)
-            send_email(*failed_msg)
-            logging.error('Tradepoint scraper failed: %s', tradepoint_output['error'])
-            return failed_msg
-    except Exception as e:
-        tradepoint_output = {"status": "failed", "error": str(e)}
-        send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
-        logging.error('An error occurred in Tradepoint scraper: %s', e)
-    return tradepoint_output
-
-def start_screwfix(prometheus_metrics):
-    try:
-        logging.info('Starting Screwfix scraper...')
-        screwfix_output = run_screwfix(prometheus_metrics)
-        if screwfix_output['status'] == 'success':
-            if screwfix_output['error_log']:
-                unsuccessfull_msg = ("Task Screwfix", "Screwfix Scraper has finished running with some errors. See the attached log file.", log_file)
-                send_email(*unsuccessfull_msg)
-                logging.warning('Screwfix scraper finished with errors.')
-                return unsuccessfull_msg
-            else:
-                successfull_msg = ("Task Screwfix", "Screwfix Scraper has finished running successfully with no errors.")
-                send_email(*successfull_msg)
-                logging.info('Screwfix scraper finished successfully.')
-                return successfull_msg
-        else:
-            failed_msg = ("Task Failed", f"An error occurred: {screwfix_output['error']}", log_file)
-            send_email(*failed_msg)
-            logging.error('Screwfix scraper failed: %s', screwfix_output['error'])
-            return failed_msg
-    except Exception as e:
-        screwfix_output = {"status": "failed", "error": str(e)}
-        send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
-        logging.error('An error occurred in Screwfix scraper: %s', e)
-    return screwfix_output
-
-def start_wickes(prometheus_metrics):
-    try:
-        logging.info('Starting Wickes scraper...')
-        wickes_output = run_wickes(prometheus_metrics)
-        if wickes_output['status'] == 'success':
-            if wickes_output['error_log']:
-                unsuccessfull_msg = ("Task Wickes", "Wickes Scraper has finished running with some errors. See the attached log file.", log_file)
-                send_email(*unsuccessfull_msg)
-                logging.warning('Wickes scraper finished with errors.')
-                return unsuccessfull_msg
-            else:
-                successfull_msg = ("Task Wickes", "Wickes Scraper has finished running successfully with no errors.")
-                send_email(*successfull_msg)
-                logging.info('Wickes scraper finished successfully.')
-                return successfull_msg
-        else:
-            failed_msg = ("Task Failed", f"An error occurred: {wickes_output['error']}", log_file)
-            send_email(*failed_msg)
-            logging.error('Wickes scraper failed: %s', wickes_output['error'])
-            return failed_msg
-    except Exception as e:
-        wickes_output = {"status": "failed", "error": str(e)}
-        send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
-        logging.error('An error occurred in Wickes scraper: %s', e)
-    return wickes_output
-
-def start_bandq(prometheus_metrics):
-    try:
-        logging.info('Starting B&Q scraper...')
-        bandq_output = run_bandq(prometheus_metrics)
-        if bandq_output['status'] == 'success':
-            if bandq_output['error_log']:
-                unsuccessfull_msg = ("Task B&Q", "B&Q Scraper has finished running with some errors. See the attached log file.", log_file)
-                send_email(*unsuccessfull_msg)
-                logging.warning('B&Q scraper finished with errors.')
-                return unsuccessfull_msg
-            else:
-                successfull_msg = ("Task B&Q", "B&Q Scraper has finished running successfully with no errors.")
-                send_email(*successfull_msg)
-                logging.info('B&Q scraper finished successfully.')
-                return successfull_msg
-        else:
-            failed_msg = ("Task Failed", f"An error occurred: {bandq_output['error']}", log_file)
-            send_email(*failed_msg)
-            logging.error('B&Q scraper failed: %s', bandq_output['error'])
-            return failed_msg
-    except Exception as e:
-        bandq_output = {"status": "failed", "error": str(e)}
-        send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
-        logging.error('An error occurred in B&Q scraper: %s', e)
-    return bandq_output
-
 def main():
     try:
         logging.info('Starting main function...')
         
         scrapers = [
-            ('wickes', lambda: start_wickes(prometheus_metrics)),
-            ('bandq', lambda: start_bandq(prometheus_metrics)),
-            ('tradepoint', lambda: start_tradepoint(prometheus_metrics)),
-            ('screwfix', lambda: start_screwfix(prometheus_metrics))
+            ('wickes', lambda: start_wickes(prometheus_metrics, log_file)),
+            ('bandq', lambda: start_bandq(prometheus_metrics, log_file)),
+            ('tradepoint', lambda: start_tradepoint(prometheus_metrics, log_file)),
+            ('screwfix', lambda: start_screwfix(prometheus_metrics, log_file))
         ]
 
         results = {}
         futures = []
+
         with ThreadPoolExecutor() as executor:
             for scraper_name, scraper_func in scrapers:
                 futures.append((scraper_name, executor.submit(scraper_func)))
@@ -169,13 +66,13 @@ def main():
                     results[scraper_name] = {"status": "failed", "error": str(e)}
                     send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
 
-        logging.info('Inserting new data to Agolia Search...')
-        insert_agolia()
+        # logging.info('Inserting new data to Agolia Search...')
+        # insert_agolia()
 
-        logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
+        # logging.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
 
-        logging.info('Stopping EC2 instance...')
-        stop_ec2()
+        # logging.info('Stopping EC2 instance...')
+        # stop_ec2()
 
         logging.info('Main function execution completed.')
 
@@ -183,5 +80,6 @@ def main():
         logging.error('An unexpected error occurred: %s', e)
         send_email("Task Failed", f"An unexpected error occurred: {str(e)}", log_file)
         raise
+
 if __name__ == '__main__':
     main()
