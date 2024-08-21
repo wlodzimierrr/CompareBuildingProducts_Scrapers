@@ -1,11 +1,16 @@
 import boto3
-from config import region_name
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import os
 import logging
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+region_name = os.getenv('REGION_NAME')
 
 def send_email(subject, body, attachment=None):
     ses = boto3.client('ses', region_name)

@@ -4,14 +4,15 @@ import logging
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from Wickes.wickes import run_wickes
+from Wickes.wickes import WickesScraper
 
 from email_utils import send_email
 
 def start_wickes(prometheus_metrics, log_file):
     try:
         logging.info('Starting Wickes scraper...')
-        wickes_output = run_wickes(prometheus_metrics)
+        scraper = WickesScraper(prometheus_metrics)
+        wickes_output = scraper.run()
         if wickes_output['status'] == 'success':
             if wickes_output['error_log']:
                 unsuccessfull_msg = ("Task Wickes", "Wickes Scraper has finished running with some errors. See the attached log file.", log_file)

@@ -1,8 +1,18 @@
 import psycopg2
 import logging
-from config import db_host, db_password, db_paths, db_storage, db_port, db_user
+from secrets_manager import SecretsManager
 
-def conn_to_pathsdb():
+secrets_manager = SecretsManager()
+secret = secrets_manager.get_secret()
+
+db_host = secret['host']
+db_user = secret['username']
+db_password = secret['password']
+db_port = secret['port']
+db_paths = secret['dbpaths']
+db_storage = secret['dbstorage']
+
+def paths_db_connection():
     try:
         conn = psycopg2.connect(
             host=db_host,
@@ -17,7 +27,7 @@ def conn_to_pathsdb():
         logging.error(f"An error occurred: {e}")
         return e
     
-def conn_to_storagedb():
+def storage_db_connection():
     try:
         conn = psycopg2.connect(
             host=db_host,

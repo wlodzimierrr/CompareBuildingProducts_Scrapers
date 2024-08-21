@@ -4,14 +4,15 @@ import logging
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from Tradepoint.tradepoint import run_tradepoint
+from Tradepoint.tradepoint import TradepointScraper
 
 from email_utils import send_email
 
 def start_tradepoint(prometheus_metrics, log_file):
     try:
         logging.info('Starting Tradepoint scraper...')
-        tradepoint_output = run_tradepoint(prometheus_metrics)
+        scraper = TradepointScraper(prometheus_metrics)
+        tradepoint_output = scraper.run()
         if tradepoint_output['status'] == 'success':
             if tradepoint_output['error_log']:
                 unsuccessfull_msg = ("Task Tradepoint", "Tradepoint Scraper has finished running with some errors. See the attached log file.", log_file)

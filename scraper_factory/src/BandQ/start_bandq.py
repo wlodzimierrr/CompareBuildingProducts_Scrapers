@@ -4,14 +4,15 @@ import logging
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from BandQ.bandq import run_bandq
+from BandQ.bandq import BandQScraper
 
 from email_utils import send_email
 
 def start_bandq(prometheus_metrics, log_file):
     try:
         logging.info('Starting B&Q scraper...')
-        bandq_output = run_bandq(prometheus_metrics)
+        scraper = BandQScraper(prometheus_metrics)
+        bandq_output = scraper.run()
         if bandq_output['status'] == 'success':
             if bandq_output['error_log']:
                 unsuccessfull_msg = ("Task B&Q", "B&Q Scraper has finished running with some errors. See the attached log file.", log_file)

@@ -4,14 +4,15 @@ import logging
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from Screwfix.screwfix import run_screwfix
+from Screwfix.screwfix import ScrewfixScraper
 
 from email_utils import send_email
 
 def start_screwfix(prometheus_metrics, log_file):
     try:
         logging.info('Starting Screwfix scraper...')
-        screwfix_output = run_screwfix(prometheus_metrics)
+        scraper = ScrewfixScraper(prometheus_metrics)
+        screwfix_output = scraper.run()
         if screwfix_output['status'] == 'success':
             if screwfix_output['error_log']:
                 unsuccessfull_msg = ("Task Screwfix", "Screwfix Scraper has finished running with some errors. See the attached log file.", log_file)
