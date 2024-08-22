@@ -22,7 +22,7 @@ class BandQScraper:
             conn = paths_db_connection()
             self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
-            cursor.execute("SELECT category_code, page_url, category, subcategory FROM bandq LIMIT 1")
+            cursor.execute("SELECT category_code, page_url, category, subcategory FROM bandq")
             data = cursor.fetchall()
             cursor.close()
             conn.close()

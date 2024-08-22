@@ -25,7 +25,7 @@ class ScrewfixScraper:
             conn = paths_db_connection()
             self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
-            cursor.execute("SELECT shop_id, category, subcategory, category_path FROM screwfix LIMIT 1")  
+            cursor.execute("SELECT shop_id, category, subcategory, category_path FROM screwfix")  
             data = cursor.fetchall()
             cursor.close()
             conn.close()

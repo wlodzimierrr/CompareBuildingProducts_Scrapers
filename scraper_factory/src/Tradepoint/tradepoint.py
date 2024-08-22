@@ -25,7 +25,7 @@ class TradepointScraper:
             conn = paths_db_connection()
             self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
-            cursor.execute("SELECT category_code, page_url, category, subcategory FROM tradepoint LIMIT 1")  
+            cursor.execute("SELECT category_code, page_url, category, subcategory FROM tradepoint")  
             data = cursor.fetchall()
             cursor.close()
             conn.close()

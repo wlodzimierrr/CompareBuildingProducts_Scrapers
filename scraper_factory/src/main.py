@@ -53,11 +53,11 @@ def main():
                     results[scraper_name] = {"status": "failed", "error": str(e)}
                     send_email("Task Failed", f"An error occurred: {str(e)}", get_logger('main').handlers[0].baseFilename)
 
-        # main_logger.info('Inserting new data to Agolia Search...')
-        # insert_agolia()
-        # main_logger.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
-        # main_logger.info('Stopping EC2 instance...')
-        # stop_ec2()
+        main_logger.info('Inserting new data to Agolia Search...')
+        insert_agolia()
+        main_logger.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
+        main_logger.info('Stopping EC2 instance...')
+        stop_ec2()
 
         main_logger.info('Main function execution completed.')
     except Exception as e:

@@ -23,7 +23,7 @@ class WickesScraper:
             conn = paths_db_connection()
             self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
-            cursor.execute("SELECT shop_id, page_url FROM wickes LIMIT 10")  
+            cursor.execute("SELECT shop_id, page_url FROM wickes")  
             data = cursor.fetchall()
             cursor.close()
             conn.close()
