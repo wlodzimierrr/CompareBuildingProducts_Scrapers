@@ -42,3 +42,17 @@ def setup_main_logger():
     main_logger.addHandler(file_handler)
 
     return main_logger
+
+def error_propagation(logger):
+    class ErrorFilter(logging.Filter):
+        def filter(self, record):
+            return record.levelno >= logging.ERROR
+
+    error_handler = logging.StreamHandler(sys.stderr)
+    error_handler.setLevel(logging.ERROR)
+    error_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
+    
+    error_handler.addFilter(ErrorFilter())
+    logger.addHandler(error_handler)
+
+    return logger

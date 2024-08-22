@@ -13,7 +13,7 @@ from BandQ.start_bandq import start_bandq
 from email_utils import send_email
 from agolia_utils import insert_agolia
 from lambda_ec2_stop import stop_ec2
-from logging_config import get_logger, setup_main_logger
+from logging_config import get_logger, setup_main_logger, error_propagation
 
 from prometheus_metrics import initialize_prometheus_server
 prometheus_metrics = initialize_prometheus_server(7000)
@@ -24,6 +24,11 @@ screwfix_logger = get_logger('screwfix')
 tradepoint_logger = get_logger('tradepoint')
 wickes_logger = get_logger('wickes')
 bandq_logger = get_logger('bandq')
+
+screwfix_logger = error_propagation(screwfix_logger)
+tradepoint_logger = error_propagation(tradepoint_logger)
+wickes_logger = error_propagation(wickes_logger)
+bandq_logger = error_propagation(bandq_logger)
 
 def main():
     try:
