@@ -6,11 +6,10 @@ from email import encoders
 import os
 import logging
 
-from dotenv import load_dotenv
+from secrets_manager import SecretsManager
 
-load_dotenv()
-
-region_name = os.getenv('REGION_NAME')
+secrets_manager = SecretsManager()
+region_name = secrets_manager.get_region_name()
 
 def send_email(subject, body, attachment=None):
     ses = boto3.client('ses', region_name)

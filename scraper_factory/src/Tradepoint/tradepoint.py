@@ -5,7 +5,6 @@ import time
 import queue
 import os
 import sys
-import logging
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -15,15 +14,16 @@ from .cookies_headers import headers
 from db_utils import paths_db_connection, storage_db_connection
 
 class TradepointScraper:
-    def __init__(self, prometheus_metrics=None):
+    def __init__(self, prometheus_metrics=None, tradepoint_logger=None):
         self.error_log = []
         self.prometheus_metrics = prometheus_metrics
+        self.logger = tradepoint_logger
 
     def get_scraping_target_data(self):
         """Retrieve scraping target data from paths database."""
         try:
             conn = paths_db_connection()
-            logging.info("Paths database connection successful")
+            self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
             cursor.execute("SELECT category_code, page_url, category, subcategory FROM tradepoint LIMIT 1")  
             data = cursor.fetchall()
@@ -32,14 +32,14 @@ class TradepointScraper:
             
             return [{"shop_id": 2, "category_code": row[0], "page_url": row[1], "category": row[2], "subcategory": row[3]} for row in data]
         except Exception as e:
-            logging.error(f"Error connecting to the database: {e}")
+            self.logger.error(f"Error connecting to the database: {e}")
             raise e    
 
     def insert_scraped_data(self, data):
         """Insert scraped data into the storage database."""
         try:
             conn = storage_db_connection()
-            logging.info("Storage database connection successful")
+            self.logger.info("Storage database connection successful")
             cursor = conn.cursor()
             enriched_data = data['enrichedData']
             
@@ -97,7 +97,7 @@ class TradepointScraper:
                         (shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand)
                     )
                 except Exception as e:
-                    logging.error(f"Error inserting product {product_name}: {e}")
+                    self.logger.error(f"Error inserting product {product_name}: {e}")
                     self.error_log.append({
                         "Product name": product_name,
                         "Page url": page_url,
@@ -107,7 +107,7 @@ class TradepointScraper:
             cursor.close()
             conn.close()
         except Exception as e:
-            logging.error(f"Error inserting data into the target database: {e}")
+            self.logger.error(f"Error inserting data into the target database: {e}")
             raise e
 
     def initial_request(self, category_code):
@@ -121,25 +121,25 @@ class TradepointScraper:
             response.raise_for_status()  
             return response
         except requests.exceptions.HTTPError as http_err:
-            logging.error(f"HTTP error occurred: {http_err}")
+            self.logger.error(f"HTTP error occurred: {http_err}")
             self.error_log.append({
                 "Category_code": str(category_code),
                 "error": str(http_err)
             })  
         except requests.exceptions.ConnectionError as conn_err:
-            logging.error(f"Connection error occurred: {conn_err}")
+            self.logger.error(f"Connection error occurred: {conn_err}")
             self.error_log.append({
                 "Category_code": str(category_code),
                 "error": str(conn_err)
             })  
         except requests.exceptions.Timeout as timeout_err:
-            logging.error("The request timed out: %s", timeout_err)
+            self.logger.error("The request timed out: %s", timeout_err)
             self.error_log.append({
                 "Category_code": str(category_code),
                 "error": str(timeout_err)
             })  
         except requests.exceptions.RequestException as err:
-            logging.error("An error occurred while handling your request: %s", err)
+            self.logger.error("An error occurred while handling your request: %s", err)
             self.error_log.append({
                 "Category_code": str(category_code),
                 "error": str(err)
@@ -154,32 +154,32 @@ class TradepointScraper:
                 meta = data.get('meta', {})
                 paging = meta.get('paging', None)
                 if paging is None:
-                    logging.error("Paging data is missing in the response.")
+                    self.logger.error("Paging data is missing in the response.")
                     return 0, False
                 total_results = paging.get('totalResults', 0)
                 return total_results, True
             except json.JSONDecodeError as e:
-                logging.error("JSON decode error: %s", e)
+                self.logger.error("JSON decode error: %s", e)
             except Exception as e:
-                logging.error("An unexpected error occurred: %s", e)
+                self.logger.error("An unexpected error occurred: %s", e)
                 self.error_log.append({
                     "Response": str(response),
                     "error": str(e)
                 }) 
         else:
-            logging.error("Failed to fetch data or no response")
+            self.logger.error("Failed to fetch data or no response")
             return 0, False
 
     def final_request(self, category_code, total_results):
         """Make final API request."""
         max_items_per_page = 200
         num_pages = (total_results // max_items_per_page) + (1 if total_results % max_items_per_page > 0 else 0)
-        logging.info(f'Total number of pages: {num_pages}')
+        self.logger.info(f'Total number of pages: {num_pages}')
         all_responses = []
         for page in range(1, num_pages + 1):
             time.sleep(random.uniform(5, 10))
             try:
-                logging.info(f"Requesting page {page} of {num_pages}")
+                self.logger.info(f"Requesting page {page} of {num_pages}")
                 response = requests.get(
                     f'https://api.kingfisher.com/v2/mobile/products/TPUK?filter[category]={category_code}&include=content&page[number]={page}&page[size]={max_items_per_page}',
                     headers=headers,
@@ -188,35 +188,35 @@ class TradepointScraper:
                 all_responses.append(response.json())
                 
             except requests.exceptions.HTTPError as http_err:
-                logging.error(f"HTTP error occurred during the API request on page {page}: {http_err}")
+                self.logger.error(f"HTTP error occurred during the API request on page {page}: {http_err}")
                 self.error_log.append({
                     "Category_code": str(category_code),
                     "Page": str(page),
                     "error": str(http_err)
                 })  
             except requests.exceptions.ConnectionError as conn_err:
-                logging.error(f"Connection error occurred during the API request on page {page}: {conn_err}")
+                self.logger.error(f"Connection error occurred during the API request on page {page}: {conn_err}")
                 self.error_log.append({
                     "Category_code": str(category_code),
                     "Page": str(page),
                     "error": str(conn_err)
                 })  
             except requests.exceptions.Timeout as timeout_err:
-                logging.error(f"Timeout occurred during the API request on page {page}: {timeout_err}")
+                self.logger.error(f"Timeout occurred during the API request on page {page}: {timeout_err}")
                 self.error_log.append({
                     "Category_code": str(category_code),
                     "Page": str(page),
                     "error": str(timeout_err)
                 })  
             except requests.exceptions.RequestException as err:
-                logging.error(f"An error occurred during the API request on page {page}: {err}")
+                self.logger.error(f"An error occurred during the API request on page {page}: {err}")
                 self.error_log.append({
                     "Category_code": str(category_code),
                     "Page": str(page),
                     "error": str(err)
                 })  
             except Exception as e:
-                logging.error(f"An error occurred during the API request on page {page}: {e}")
+                self.logger.error(f"An error occurred during the API request on page {page}: {e}")
                 self.error_log.append({
                     "Category_code": str(category_code),
                     "Page": str(page),
@@ -235,11 +235,11 @@ class TradepointScraper:
             category_code = category_path_data['category_code']
             page_url = category_path_data['page_url']
             
-            logging.info('Making initial request...')
+            self.logger.info('Making initial request...')
             try:
                 response = self.initial_request(category_code)
             except Exception as e:
-                logging.error("Error making initial request for path %s: %s", page_url, e)
+                self.logger.error("Error making initial request for path %s: %s", page_url, e)
                 self.error_log.append({
                     "path": page_url,
                     "error": str(e)
@@ -248,12 +248,12 @@ class TradepointScraper:
                 progress_bar.update(1)
                 continue
                 
-            logging.info('Extracting item count...')
+            self.logger.info('Extracting item count...')
             total_results, success_or_error = self.get_total_page_count(response)
             if isinstance(success_or_error, bool):
                 success = success_or_error
             else:
-                logging.error("Error extracting item count for path %s: %s", page_url, success_or_error)
+                self.logger.error("Error extracting item count for path %s: %s", page_url, success_or_error)
                 self.error_log.append({
                     "path": page_url,
                     "error": success_or_error
@@ -262,14 +262,14 @@ class TradepointScraper:
                 progress_bar.update(1)
                 continue
                 
-            logging.info(f'Total item count for category: {total_results}')
+            self.logger.info(f'Total item count for category: {total_results}')
             
             if success:
-                logging.info('Making final request...')
+                self.logger.info('Making final request...')
                 all_responses = self.final_request(category_code, total_results)
-                logging.info('Handling data insertion...')
+                self.logger.info('Handling data insertion...')
                 total_responses = len(all_responses)
-                logging.info(f'Inserting {total_responses} responses')
+                self.logger.info(f'Inserting {total_responses} responses')
                 remaining_responses = total_responses
                 total_products_scraped = 0
                 for response_data in all_responses:
@@ -283,11 +283,11 @@ class TradepointScraper:
                         'enrichedData': enriched_data
                     }
                     self.insert_scraped_data(data_to_insert)
-                    logging.info(f'{remaining_responses} / {total_responses}')
+                    self.logger.info(f'{remaining_responses} / {total_responses}')
                     remaining_responses -= 1
-                logging.info(f'Total products scraped: {total_products_scraped}')
+                self.logger.info(f'Total products scraped: {total_products_scraped}')
             else:
-                logging.error('Missing paging info for category %s', page_url)
+                self.logger.error('Missing paging info for category %s', page_url)
                 self.error_log.append({
                     "path": page_url,
                     "error": 'Missing paging info'
@@ -301,7 +301,7 @@ class TradepointScraper:
                 progress = (jobs_left / total_jobs) * 100
                 self.prometheus_metrics.update_progress('tradepoint', progress)
                 self.prometheus_metrics.update_jobs_remaining('tradepoint', jobs_left)
-            logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
+            self.logger.info(f"Jobs left: {jobs_left}/{total_jobs}")
 
     def run(self):
         """Main function to run the scraping process."""
@@ -313,7 +313,7 @@ class TradepointScraper:
                 task_queue.put(path)
             
             total_jobs = task_queue.qsize()
-            logging.info(f'Total jobs to scrape: {total_jobs}')
+            self.logger.info(f'Total jobs to scrape: {total_jobs}')
 
             if self.prometheus_metrics:
                 self.prometheus_metrics.set_total_jobs('tradepoint', total_jobs)
@@ -327,7 +327,7 @@ class TradepointScraper:
 
             return {"status": "success", "error_log": self.error_log, "total_jobs": total_jobs}
         except Exception as e:
-            logging.error(f"Error in run_tradepoint: {str(e)}")
+            self.logger.error(f"Error in run_tradepoint: {str(e)}")
             if self.prometheus_metrics:
                 self.prometheus_metrics.update_progress('tradepoint', 0)
             return {"status": "failed", "error": str(e)}

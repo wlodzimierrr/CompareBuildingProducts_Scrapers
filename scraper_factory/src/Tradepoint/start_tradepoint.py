@@ -8,31 +8,32 @@ from Tradepoint.tradepoint import TradepointScraper
 
 from email_utils import send_email
 
-def start_tradepoint(prometheus_metrics, log_file):
+def start_tradepoint(prometheus_metrics, tradepoint_logger):
     try:
-        logging.info('Starting Tradepoint scraper...')
-        scraper = TradepointScraper(prometheus_metrics)
+        tradepoint_logger.propagate = False
+        tradepoint_logger.info('Starting Tradepoint scraper...')
+        scraper = TradepointScraper(prometheus_metrics, tradepoint_logger)
         tradepoint_output = scraper.run()
         if tradepoint_output['status'] == 'success':
             if tradepoint_output['error_log']:
-                unsuccessfull_msg = ("Task Tradepoint", "Tradepoint Scraper has finished running with some errors. See the attached log file.", log_file)
+                unsuccessfull_msg = ("Task Tradepoint", "Tradepoint Scraper has finished running with some errors. See the attached log file.", tradepoint_logger.handlers[0].baseFilename)
                 send_email(*unsuccessfull_msg)
-                logging.warning('Tradepoint scraper finished with errors.')
+                tradepoint_logger.warning('Tradepoint scraper finished with errors.')
                 return unsuccessfull_msg
             else:
                 successfull_msg = ("Task Tradepoint", "Tradepoint Scraper has finished running successfully with no errors.")
                 send_email(*successfull_msg)
-                logging.info('Tradepoint scraper finished successfully.')
+                tradepoint_logger.info('Tradepoint scraper finished successfully.')
                 return successfull_msg
         else:
-            failed_msg = ("Task Failed", f"An error occurred: {tradepoint_output['error']}", log_file)
+            failed_msg = ("Task Failed", f"An error occurred: {tradepoint_output['error']}", tradepoint_logger.handlers[0].baseFilename)
             send_email(*failed_msg)
-            logging.error('Tradepoint scraper failed: %s', tradepoint_output['error'])
+            tradepoint_logger.error('Tradepoint scraper failed: %s', tradepoint_output['error'])
             return failed_msg
     except Exception as e:
         tradepoint_output = {"status": "failed", "error": str(e)}
-        send_email("Task Failed", f"An error occurred: {str(e)}", log_file)
-        logging.error('An error occurred in Tradepoint scraper: %s', e)
+        send_email("Task Failed", f"An error occurred: {str(e)}", tradepoint_logger.handlers[0].baseFilename)
+        tradepoint_logger.error('An error occurred in Tradepoint scraper: %s', e)
     return tradepoint_output
 
 

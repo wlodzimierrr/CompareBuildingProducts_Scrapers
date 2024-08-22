@@ -1,12 +1,11 @@
 import boto3
 import json
 import logging
-import os
-from dotenv import load_dotenv
 
-load_dotenv()
+from secrets_manager import SecretsManager
 
-region_name = os.getenv('REGION_NAME')
+secrets_manager = SecretsManager()
+region_name = secrets_manager.get_region_name()
 
 def stop_ec2():
     lam = boto3.client('lambda', region_name=region_name) 

@@ -3,7 +3,6 @@ import json
 import queue
 import os
 import sys
-import logging
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 import time
@@ -13,15 +12,16 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from db_utils import paths_db_connection, storage_db_connection
 
 class WickesScraper:
-    def __init__(self, prometheus_metrics=None):
+    def __init__(self, prometheus_metrics=None, wickes_logger=None):
         self.error_log = []
         self.prometheus_metrics = prometheus_metrics
+        self.logger = wickes_logger
 
     def get_scraping_target_data(self):
         """Retrieve scraping target data from paths database."""
         try:
             conn = paths_db_connection()
-            logging.info("Paths database connection successful")
+            self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
             cursor.execute("SELECT shop_id, page_url FROM wickes LIMIT 10")  
             data = cursor.fetchall()
@@ -29,14 +29,14 @@ class WickesScraper:
             conn.close()
             return [{"shop_id": row[0], "page_url": row[1]} for row in data]
         except Exception as e:
-            logging.error(f"Error connecting to the database: {e}")
+            self.logger.error(f"Error connecting to the database: {e}")
             raise e
 
     def insert_scraped_data(self, product):
         """Insert scraped data into the storage database."""
         try:
             conn = storage_db_connection()
-            logging.info("Storage database connection successful")
+            self.logger.info("Storage database connection successful")
             cursor = conn.cursor()
 
             product_name = product['product_name']
@@ -77,7 +77,7 @@ class WickesScraper:
                     (shop_id, category, subcategory, product_name, page_url, features, image_url, product_description, rating, rating_count, price, brand)
                 )
             except Exception as e:
-                logging.error(f"Error inserting product {page_url}: {e}")
+                self.logger.error(f"Error inserting product {page_url}: {e}")
                 self.error_log.append({
                     "Page url": page_url,
                     "error": 'Inserting error'
@@ -86,7 +86,7 @@ class WickesScraper:
             cursor.close()
             conn.close()
         except Exception as e:
-            logging.error(f"Error inserting data into the target database: {e}")
+            self.logger.error(f"Error inserting data into the target database: {e}")
             raise e
 
     def scraping_process(self, task_queue, total_jobs, progress_bar):
@@ -97,7 +97,7 @@ class WickesScraper:
             shop_id = product_path_data['shop_id']
             
             try:
-                logging.info(f"Navigating to: {product_path}")
+                self.logger.info(f"Navigating to: {product_path}")
                 response = requests.get(product_path)
                 response.raise_for_status()
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -192,24 +192,24 @@ class WickesScraper:
                     'shop_id': shop_id,
                 }
 
-                logging.info(f"Finished scraping {product_path}")
+                self.logger.info(f"Finished scraping {product_path}")
                 if product_info:
                     self.insert_scraped_data(product_info)
 
             except requests.exceptions.RequestException as e:
-                logging.error(f"Error fetching URL {product_path}: {e}")
+                self.logger.error(f"Error fetching URL {product_path}: {e}")
                 self.error_log.append({
                     "Product_path": str(product_path),
                     "error": str(e)
                 })
             except json.JSONDecodeError as e:
-                logging.info(f"Error parsing JSON from {product_path}: {e}")
+                self.logger.info(f"Error parsing JSON from {product_path}: {e}")
                 self.error_log.append({
                     "Product_path": str(product_path),
                     "error": str(e)
                 })
             except Exception as e:
-                logging.error(f"Error processing {product_path}: {e}")
+                self.logger.error(f"Error processing {product_path}: {e}")
                 self.error_log.append({
                     "Product_path": str(product_path),
                     "error": str(e)
@@ -223,7 +223,7 @@ class WickesScraper:
                     progress = (jobs_left / total_jobs) * 100
                     self.prometheus_metrics.update_progress('wickes', progress)
                     self.prometheus_metrics.update_jobs_remaining('wickes', jobs_left)
-                logging.info(f"Jobs left: {jobs_left}/{total_jobs}")
+                self.logger.info(f"Jobs left: {jobs_left}/{total_jobs}")
                 time.sleep(2)
 
     def run(self):
@@ -236,7 +236,7 @@ class WickesScraper:
                 task_queue.put(path)
 
             total_jobs = task_queue.qsize()
-            logging.info(f'Total jobs to scrape: {total_jobs}')
+            self.logger.info(f'Total jobs to scrape: {total_jobs}')
 
             if self.prometheus_metrics:
                 self.prometheus_metrics.set_total_jobs('wickes', total_jobs)
@@ -250,7 +250,7 @@ class WickesScraper:
 
             return {"status": "success", "error_log": self.error_log, "total_jobs": total_jobs}
         except Exception as e:
-            logging.error(f"Error in run_wickes: {str(e)}")
+            self.logger.error(f"Error in run_wickes: {str(e)}")
             if self.prometheus_metrics:
                 self.prometheus_metrics.update_progress('wickes', 0)
             return {"status": "failed", "error": str(e)}

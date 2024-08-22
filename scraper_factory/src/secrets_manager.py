@@ -25,7 +25,10 @@ class SecretsManager:
         
         secret = get_secret_value_response['SecretString']
         return json.loads(secret)
-
+    
+    def get_region_name(self):
+        return self.region_name
+    
 secrets_manager = SecretsManager()
 secret = secrets_manager.get_secret()
 
