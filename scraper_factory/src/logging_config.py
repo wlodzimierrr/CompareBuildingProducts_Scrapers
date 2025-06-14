@@ -56,3 +56,5 @@ def error_propagation(logger):
     logger.addHandler(error_handler)
 
     return logger
+
+main_logger = setup_main_logger()

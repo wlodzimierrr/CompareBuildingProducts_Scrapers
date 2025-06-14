@@ -9,7 +9,7 @@ import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from db_utils import paths_db_connection, storage_db_connection
+from db_postgres import paths_db_connection, storage_db_connection
 
 class WickesScraper:
     def __init__(self, prometheus_metrics=None, wickes_logger=None):
@@ -23,7 +23,7 @@ class WickesScraper:
             conn = paths_db_connection()
             self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
-            cursor.execute("SELECT shop_id, page_url FROM wickes")  
+            cursor.execute("SELECT shop_id, page_url FROM wickes LIMIT 20")  
             data = cursor.fetchall()
             cursor.close()
             conn.close()

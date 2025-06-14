@@ -1,8 +1,8 @@
 import os
 import boto3
 from botocore.exceptions import NoRegionError, ClientError
-import json
 import logging
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -34,3 +34,4 @@ secret = secrets_manager.get_secret()
 
 agolia_app_id = secret['agolia_app_id']
 agolia_password = secret['agolia_API_key']
+mongodb_url = secret['mongodb_url']

@@ -5,9 +5,8 @@ from email.mime.base import MIMEBase
 from email import encoders
 import os
 import logging
-
+from logging_config import main_logger
 from secrets_manager import SecretsManager
-
 secrets_manager = SecretsManager()
 region_name = secrets_manager.get_region_name()
 
@@ -39,5 +38,5 @@ def send_email(subject, body, attachment=None):
         )
         return response
     except Exception as e:
-        logging.error(f"Error sending email: {str(e)}")
+        main_logger.error(f"Error sending email: {str(e)}")
         return None

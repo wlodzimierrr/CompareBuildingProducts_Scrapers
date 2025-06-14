@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 from concurrent.futures import ThreadPoolExecutor
 
 main_dir = os.path.dirname(os.path.abspath(__file__))
@@ -11,14 +12,15 @@ from Screwfix.start_screwfix import start_screwfix
 from BandQ.start_bandq import start_bandq
 
 from email_utils import send_email
-from agolia_utils import insert_agolia
+from algolia_utils import insert_algolia
+from mongodb_utils import insert_mongodb
 from lambda_ec2_stop import stop_ec2
-from logging_config import get_logger, setup_main_logger, error_propagation
+from logging_config import get_logger, error_propagation, main_logger
 
 from prometheus_metrics import initialize_prometheus_server
 prometheus_metrics = initialize_prometheus_server(7000)
 
-main_logger = setup_main_logger()
+
 
 screwfix_logger = get_logger('screwfix')
 tradepoint_logger = get_logger('tradepoint')
@@ -36,7 +38,7 @@ def main():
 
         scrapers = [
             ('wickes', lambda: start_wickes(prometheus_metrics, wickes_logger)),
-            ('bandq', lambda: start_bandq(prometheus_metrics, bandq_logger)),
+            # ('bandq', lambda: start_bandq(prometheus_metrics, bandq_logger)),
             ('tradepoint', lambda: start_tradepoint(prometheus_metrics, tradepoint_logger)),
             ('screwfix', lambda: start_screwfix(prometheus_metrics, screwfix_logger))
         ]
@@ -52,17 +54,19 @@ def main():
                 try:
                     result = future.result()
                     results[scraper_name] = result
-                    main_logger.info(f'{scraper_name} scraper result: {result}')
+                    logging.info(f'{scraper_name} scraper result: {result}')
                 except Exception as e:
-                    main_logger.error(f'{scraper_name} scraper generated an exception: {e}')
+                    logging.error(f'{scraper_name} scraper generated an exception: {e}')
                     results[scraper_name] = {"status": "failed", "error": str(e)}
                     send_email("Task Failed", f"An error occurred: {str(e)}", get_logger('main').handlers[0].baseFilename)
 
         main_logger.info('Inserting new data to Agolia Search...')
-        insert_agolia()
+        insert_algolia()
+        # main_logger.info('Inserting new data to price history database/MongoDB...')
+        # insert_mongodb()
         main_logger.info(f'Scraping Done! New data is updated in the Agolia Search.\n{results}')
-        main_logger.info('Stopping EC2 instance...')
-        stop_ec2()
+        # main_logger.info('Stopping EC2 instance...')
+        # stop_ec2()
 
         main_logger.info('Main function execution completed.')
     except Exception as e:

@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from .cookies_headers import cookies, headers
 
-from db_utils import paths_db_connection, storage_db_connection
+from db_postgres import paths_db_connection, storage_db_connection
 
 class ScrewfixScraper:
     def __init__(self, prometheus_metrics=None, screwfix_logger=None):
@@ -25,7 +25,7 @@ class ScrewfixScraper:
             conn = paths_db_connection()
             self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
-            cursor.execute("SELECT shop_id, category, subcategory, category_path FROM screwfix")  
+            cursor.execute("SELECT shop_id, category, subcategory, category_path FROM screwfix LIMIT 5")  
             data = cursor.fetchall()
             cursor.close()
             conn.close()

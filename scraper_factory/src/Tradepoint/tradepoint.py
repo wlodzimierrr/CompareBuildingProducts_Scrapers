@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from .cookies_headers import headers
 
-from db_utils import paths_db_connection, storage_db_connection
+from db_postgres import paths_db_connection, storage_db_connection
 
 class TradepointScraper:
     def __init__(self, prometheus_metrics=None, tradepoint_logger=None):
@@ -25,7 +25,7 @@ class TradepointScraper:
             conn = paths_db_connection()
             self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
-            cursor.execute("SELECT category_code, page_url, category, subcategory FROM tradepoint")  
+            cursor.execute("SELECT category_code, page_url, category, subcategory FROM tradepoint LIMIT 5")  
             data = cursor.fetchall()
             cursor.close()
             conn.close()

@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from .headers import headers
 
-from db_utils import paths_db_connection, storage_db_connection
+from db_postgres import paths_db_connection, storage_db_connection
 
 
 class BandQScraper:
@@ -22,7 +22,7 @@ class BandQScraper:
             conn = paths_db_connection()
             self.logger.info("Paths database connection successful")
             cursor = conn.cursor()
-            cursor.execute("SELECT category_code, page_url, category, subcategory FROM bandq")
+            cursor.execute("SELECT category_code, page_url, category, subcategory FROM bandq LIMIT 5")
             data = cursor.fetchall()
             cursor.close()
             conn.close()
