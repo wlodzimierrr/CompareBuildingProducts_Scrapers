@@ -9,12 +9,13 @@ This project is a building products comparison website that enables users to com
 ### Front End: [CompareBuildingProducts_Web](https://github.com/wlodzimierrr/CompareBuildingProducts_Web)
 
 - **Technology**: Developed using Next.js.
-- **Hosting**: Hosted separately.
+- **Hosting**: Hosted on GCP VM. [ https://comparebuilding.wlodzimierr.co.uk](https://compareproducts.wlodzimierrr.co.uk/)
 - **Features**: Interactive UI with search functionality and product categorization.
   
 ### Mobile App: [CompareBuildingProducts_App](https://github.com/wlodzimierrr/CompareBuildingProducts_App)
+
 - **Technology**: Developed using Next.js, Ionic, Capacitor.
-- **Hosting**: Not yet.
+- **Hosting**: Hosted on GCP VM. [https://compareapp.wlodzimierr.co.uk](https://compareapp.wlodzimierrr.co.uk/)
 - **Features**: Interactive UI with search functionality.
 
 ### Back End
@@ -79,3 +80,7 @@ This project is a building products comparison website that enables users to com
 2. **Database Diagram**:
 
 ![Process Flow Diagram](https://github.com/wlodzimierrr/CompareBuildingProducts_Scrapers/assets/140817588/cab490aa-11db-455b-a338-6903b55765e2)
+
+3. **Grafana Dashboard**:
+   
+![Grafana Dash](https://github.com/user-attachments/assets/f789be3b-69f6-488d-981a-603e63bccda7)
